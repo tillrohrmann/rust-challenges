@@ -1,8 +1,6 @@
 use std::fmt::Display;
 
 fn main() {
-    println!("{:?}", series(1, 1000, triangle));
-
     let functions = [triangle, square, pentagonal, hexagonal, heptagonal, octagonal];
 
 //    let functions = [triangle, square, pentagonal];
@@ -40,8 +38,6 @@ fn find_cyclic_numbers(materialized_ranges: &Vec<Vec<usize>>) -> Option<Vec<usiz
 }
 
 fn helper_cyclic_numbers(numbers: &mut Vec<usize>, ranges: &Vec<&Vec<usize>>) -> Option<Vec<usize>> {
-    println!("{:?}", numbers);
-
     if ranges.is_empty() {
         let first = numbers.first().unwrap();
         let last = numbers.last().unwrap();
