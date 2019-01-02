@@ -1,13 +1,11 @@
 use std::collections::HashMap;
-use std::collections::hash_map::Entry;
 
 fn main() {
     let number_cubes = 5;
     let mut cache = HashMap::new();
-    let mut normal_form = 0;
 
     for i in 1..10000 {
-        normal_form = sort_digits(cube(i));
+        let normal_form = sort_digits(cube(i));
 
         let entries = cache
             .entry(normal_form)
@@ -15,7 +13,7 @@ fn main() {
 
         entries.push(i);
 
-        if entries.len() == 5 {
+        if entries.len() == number_cubes {
             println!("Cubes: {:?}", entries);
             println!("Normal form {}, smallest {}", normal_form, cube(entries[0]));
 
