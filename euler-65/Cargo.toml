@@ -1,0 +1,8 @@
+[package]
+name = "euler-65"
+version = "0.1.0"
+authors = ["Till Rohrmann <trohrmann@apache.org>"]
+edition = "2018"
+
+[dependencies]
+rug = "1.2.3"
