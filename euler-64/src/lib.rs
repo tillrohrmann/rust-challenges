@@ -145,7 +145,7 @@ impl Primes {
         self.primes.iter()
     }
 
-    fn gcd(&self, a: i32, b: i32) -> u32 {
+    pub fn gcd(&self, a: i32, b: i32) -> u32 {
         let mut a = a.abs() as u32;
         let mut b = b.abs() as u32;
         let mut gcd = 1;
