@@ -33,6 +33,24 @@ impl<'a, T> Iterator for Permutate<'a, T> {
                 result.push(element);
             }
 
+            let mut swaps = self.counter;
+            let mut index = 0;
+            let len = result.len();
+
+            while swaps > 0 {
+                let base = len - index;
+                let target = swaps % base;
+
+                if target > 0 {
+                    let element = result[index];
+                    result[index] = result[target + index];
+                    result[target + index] = element;
+                }
+
+                swaps /= base;
+                index += 1;
+            }
+
             self.counter += 1;
 
             Some(result)
@@ -44,27 +62,28 @@ impl<'a, T> Iterator for Permutate<'a, T> {
 mod tests {
 
     use super::*;
+    use std::collections::HashSet;
 
     #[test]
     fn test_simple_permutation() {
         let input = vec![1];
         let permutate = Permutate::new(&input);
 
-        assert_eq!(permutate.collect::<Vec<Vec<&i32>>>(), vec![vec![&1]])
+        assert_eq!(permutate.collect::<HashSet<Vec<&i32>>>(), vec![vec![&1]].iter().cloned().collect())
     }
 
     #[test]
     fn test_two_element_permutation() {
         let input = vec![1, 2];
         let permutate = Permutate::new(&input);
-        assert_eq!(permutate.collect::<Vec<Vec<&i32>>>(), vec![vec![&1, &2], vec![&2, &1]])
+        assert_eq!(permutate.collect::<HashSet<Vec<&i32>>>(), vec![vec![&1, &2], vec![&2, &1]].iter().cloned().collect())
     }
 
     #[test]
     fn test_string_permutation() {
         let input = vec!["1", "2", "3"];
         let permutate = Permutate::new(&input);
-        let expected = vec![vec![&"1", &"2", &"3"], vec![&"1", &"3", &"2"], vec![&"2", &"1", &"3"], vec![&"2", &"3", &"1"], vec![&"3", &"1", &"2"], vec![&"3", &"2", &"1"]];
-        assert_eq!(permutate.collect::<Vec<Vec<&&str>>>(), expected)
+        let expected = vec![vec![&"1", &"2", &"3"], vec![&"1", &"3", &"2"], vec![&"2", &"1", &"3"], vec![&"2", &"3", &"1"], vec![&"3", &"1", &"2"], vec![&"3", &"2", &"1"]].iter().cloned().collect();
+        assert_eq!(permutate.collect::<HashSet<Vec<&&str>>>(), expected)
     }
 }
