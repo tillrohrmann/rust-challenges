@@ -8,35 +8,39 @@ use std::io::BufReader;
 use std::io::BufRead;
 
 #[derive(Debug, PartialEq)]
-struct Rectangular {
+struct Rectangle {
     x: u32,
     y: u32,
     width: u32,
     height: u32,
 }
 
-impl Rectangular {
-    fn new(x: u32, y: u32, width: u32, height: u32) -> Rectangular {
-        Rectangular {
+impl Rectangle {
+    fn new(x: u32, y: u32, width: u32, height: u32) -> Rectangle {
+        Rectangle {
             x,
             y,
             width,
             height,
         }
     }
+
+    fn size(&self) -> usize {
+        (self.width * self.height) as usize
+    }
 }
 
 #[derive(Debug, PartialEq)]
 pub struct Proposal {
     id: u32,
-    rectangular: Rectangular,
+    rectangle: Rectangle,
 }
 
 impl Proposal {
-    fn new(id: u32, rectangular: Rectangular) -> Proposal {
+    fn new(id: u32, rectangular: Rectangle) -> Proposal {
         Proposal {
             id,
-            rectangular,
+            rectangle: rectangular,
         }
     }
 }
@@ -62,7 +66,7 @@ pub fn parse_proposal(line: &str) -> Result<Proposal, String> {
         let width = u32::from_str(&cap[4]).unwrap();
         let height = u32::from_str(&cap[5]).unwrap();
 
-        let rect = Rectangular::new(x, y, width, height);
+        let rect = Rectangle::new(x, y, width, height);
 
         Ok(Proposal::new(id, rect))
     } else {
@@ -81,59 +85,113 @@ impl Fabric {
         }
     }
 
+    fn iter<'a>(&'a self, rectangle: &'a Rectangle) -> FabricIter<'a> {
+        FabricIter::new(self, rectangle)
+    }
+
+    fn iter_mut<'a>(&'a mut self, rectangle: &'a Rectangle) -> FabricIterMut<'a> {
+        FabricIterMut::new(self, rectangle)
+    }
+
     pub fn add(&mut self, proposal: &Proposal) {
-        let mut y = proposal.rectangular.y as usize;
-
-        for _ in 0..proposal.rectangular.height {
-            let mut x = proposal.rectangular.x as usize;
-
-            for _ in 0..proposal.rectangular.width {
-                self.map[y][x] += 1;
-                x += 1;
-            }
-
-            y += 1;
-        }
+        self.iter_mut(&proposal.rectangle).for_each(|v| *v += 1);
     }
 
     pub fn print(&self) {
-        for y in 0..1000 {
-            for x in 0..1000 {
-                print!("{};", self.map[y][x])
+        let rectangle = Rectangle::new(0, 0, 1000, 1000);
+        let a = self.iter(&rectangle);
+
+        for (index, element) in a.enumerate() {
+            print!("{};", element);
+
+            if index % 1000 == 999 {
+                print!("\n");
             }
-            print!("\n");
         }
     }
 
-    pub fn count(&self) -> u32 {
-        let mut counter = 0;
-        for y in 0..1000 {
-            for x in 0..1000 {
-                if self.map[y][x] > 1 {
-                    counter += 1;
-                }
-            }
-        }
-        counter
+    pub fn count(&self) -> usize {
+        self.iter(&Rectangle::new(0, 0, 1000, 1000)).filter(|&v| v > 1).count()
     }
 
     pub fn check(&self, proposal: &Proposal) -> bool {
-        let mut y = proposal.rectangular.y as usize;
+        self.iter(&proposal.rectangle).all(|v| v == 1)
+    }
+}
 
-        for _ in 0..proposal.rectangular.height {
-            let mut x = proposal.rectangular.x as usize;
+struct FabricIter<'a> {
+    fabric : &'a Fabric,
+    rectangle: &'a Rectangle,
+    counter: usize,
+}
 
-            for _ in 0..proposal.rectangular.width {
-                if self.map[y][x] != 1 {
-                    return false;
-                }
-                x += 1;
-            }
-
-            y += 1;
+impl<'a> FabricIter<'a> {
+    fn new(fabric: &'a Fabric, rectangle: &'a Rectangle) -> FabricIter<'a> {
+        FabricIter {
+            fabric,
+            rectangle,
+            counter: 0
         }
+    }
+}
 
-        true
+impl<'a> Iterator for FabricIter<'a> {
+    type Item = u32;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.counter >= self.rectangle.size() {
+            None
+        } else {
+            let width = self.counter % self.rectangle.width as usize;
+            let height = self.counter / self.rectangle.width as usize;
+
+            self.counter += 1;
+
+            let x = width + self.rectangle.x as usize;
+            let y = height + self.rectangle.y as usize;
+
+            Some(self.fabric.map[y][x])
+        }
+    }
+}
+
+struct FabricIterMut<'a> {
+    fabric : &'a mut Fabric,
+    rectangle: &'a Rectangle,
+    counter: usize,
+}
+
+impl<'a> FabricIterMut<'a> {
+    fn new(fabric: &'a mut Fabric, rectangle: &'a Rectangle) -> FabricIterMut<'a> {
+        FabricIterMut {
+            fabric,
+            rectangle,
+            counter : 0,
+        }
+    }
+}
+
+impl<'a> Iterator for FabricIterMut<'a> {
+    type Item = &'a mut u32;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.counter >= self.rectangle.size() {
+            None
+        } else {
+            let width = self.counter % self.rectangle.width as usize;
+            let height = self.counter / self.rectangle.width as usize;
+
+            self.counter += 1;
+
+            let x = width + self.rectangle.x as usize;
+            let y = height + self.rectangle.y as usize;
+
+            let result = &mut self.fabric.map[y][x] as *mut u32;
+
+            unsafe {
+                Some(&mut *result)
+            }
+        }
     }
 }
 
@@ -143,7 +201,7 @@ mod tests {
 
     #[test]
     fn test_parse_proposal() {
-        assert_eq!(parse_proposal("#24 @ 61,509: 10x17").unwrap(), Proposal::new(24, Rectangular::new(61, 509, 10, 17)))
+        assert_eq!(parse_proposal("#24 @ 61,509: 10x17").unwrap(), Proposal::new(24, Rectangle::new(61, 509, 10, 17)))
     }
 
     #[test]
