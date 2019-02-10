@@ -5,9 +5,13 @@ fn main() {
 
     let mut fabric = Fabric::new();
 
-    for x in proposals {
-        fabric.add(&x);
+    for x in proposals.iter() {
+        fabric.add(x);
     }
 
     println!("{}", fabric.count());
+
+    let result: Vec<Proposal> = proposals.into_iter().filter(|proposal| fabric.check(proposal)).collect();
+
+    println!("{:?}", result)
 }

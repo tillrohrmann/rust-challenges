@@ -116,6 +116,25 @@ impl Fabric {
         }
         counter
     }
+
+    pub fn check(&self, proposal: &Proposal) -> bool {
+        let mut y = proposal.rectangular.y as usize;
+
+        for _ in 0..proposal.rectangular.height {
+            let mut x = proposal.rectangular.x as usize;
+
+            for _ in 0..proposal.rectangular.width {
+                if self.map[y][x] != 1 {
+                    return false;
+                }
+                x += 1;
+            }
+
+            y += 1;
+        }
+
+        true
+    }
 }
 
 #[cfg(test)]
