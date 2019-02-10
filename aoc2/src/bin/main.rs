@@ -3,24 +3,11 @@ use aoc2::*;
 fn main() {
     let input = read_file_lines("input.txt");
 
-    let result = input
-        .iter()
-        .map(|line| count_letters(line))
-        .map(|(two, three)| {
-            let two = if two > 0 {
-                1
-            } else {
-                0
-            };
+    let result = calculate_checksum(&input);
 
-            let three = if three > 0 {
-                1
-            } else {
-                0
-            };
-            (two, three)
-        })
-        .fold((0, 0), |(acc_two, acc_three), (two, three)| (acc_two + two, acc_three + three));
+    let identical_ids = find_identical_ids(input.iter().map(AsRef::as_ref).collect());
 
-    println!("Result {:?}", result.0 * result.1)
+    println!("Result {:?}", result.0 * result.1);
+
+    println!("Identical ids: {:?}", identical_ids);
 }
