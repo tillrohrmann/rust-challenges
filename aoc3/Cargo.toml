@@ -1,0 +1,9 @@
+[package]
+name = "aoc3"
+version = "0.1.0"
+authors = ["Till Rohrmann <trohrmann@apache.org>"]
+edition = "2018"
+
+[dependencies]
+regex = "1"
+lazy_static = "1.2.0"
