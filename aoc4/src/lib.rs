@@ -15,6 +15,11 @@ use chrono::prelude::*;
 use regex::Captures;
 use regex::Match;
 use regex::Regex;
+use std::collections::HashMap;
+use std::thread::current;
+use std::fmt::Debug;
+use std::fmt::Error;
+use std::collections::hash_map::Values;
 
 
 pub type ParseResult<T> = Result<T, Box<error::Error>>;
@@ -47,7 +52,7 @@ pub struct LogEntry {
 }
 
 impl LogEntry {
-    fn new(date_time: DateTime<Utc>, action: Action) -> LogEntry {
+    pub fn new(date_time: DateTime<Utc>, action: Action) -> LogEntry {
         LogEntry {
             date_time,
             action
@@ -148,7 +153,122 @@ pub fn read_log(path: &str) -> ParseResult<Vec<LogEntry>> {
     Ok(result)
 }
 
+pub struct Guard {
+    id: u32,
+    total_minutes_asleep: u32,
+    minutes_asleep: [u32; 60],
+}
 
+impl PartialEq for Guard {
+    fn eq(&self, other: &Guard) -> bool {
+        self.id == other.id &&
+            self.total_minutes_asleep == other.total_minutes_asleep &&
+            self.minutes_asleep.iter().zip(other.minutes_asleep.iter()).all(|(a, b)| a == b)
+    }
+}
+
+impl Debug for Guard {
+    fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
+        write!(f, "Guard {{ id: {}, total_minutes_asleep: {}, minutes_asleep: {:?} }}", self.id, self.total_minutes_asleep, &self.minutes_asleep[..])
+    }
+}
+
+impl Guard {
+    pub fn new(id: u32) -> Guard {
+        Guard {
+            id,
+            total_minutes_asleep: 0,
+            minutes_asleep: [0; 60],
+        }
+    }
+
+    pub fn mark_asleep(&mut self, start: u32, end: u32) {
+        for index in start..end {
+            self.minutes_asleep[index as usize] += 1;
+        }
+
+        self.total_minutes_asleep += end - start;
+    }
+
+    pub fn get_total_minutes_asleep(&self) -> u32 {
+        self.total_minutes_asleep
+    }
+
+    pub fn get_id(&self) -> u32 {
+        self.id
+    }
+
+    pub fn find_minute_most_often_asleep(&self) -> usize {
+        let (result, _) = self.minutes_asleep.iter().enumerate().max_by(|&(_, a), &(_, b)| a.cmp(b)).unwrap();
+        result
+    }
+}
+
+#[derive(PartialEq, Debug)]
+pub struct GuardOverview {
+    guards: std::collections::HashMap<u32, Guard>,
+}
+
+impl GuardOverview {
+    pub fn new() -> GuardOverview {
+        GuardOverview {
+            guards: std::collections::HashMap::with_capacity(10),
+        }
+    }
+
+    pub fn get_or_insert(&mut self, id: u32) -> &mut Guard {
+        self.guards.entry(id).or_insert_with(|| Guard::new(id))
+    }
+
+    pub fn iter(&self) -> Values<u32, Guard> {
+        self.guards.values()
+    }
+}
+
+pub fn process_log(log: &Vec<LogEntry>) -> GuardOverview {
+    let mut current_guard: Option<u32> = None;
+    let mut asleep_since: Option<u32> = None;
+    let mut guard_overview = GuardOverview::new();
+
+    for log_entry in log {
+        match log_entry.action {
+            Action::Guard(id) => {
+                match (current_guard, asleep_since) {
+                    (_, None) => {
+                        current_guard = Some(id);
+                    }
+                    _ => {
+                        panic!("Invalid state when new guard.");
+                    }
+                }
+            },
+            Action::FallsAsleep => {
+                match (current_guard, asleep_since) {
+                    (Some(id), None) => {
+                        asleep_since = Some(log_entry.date_time.minute());
+                    },
+                    _ => {
+                        panic!("Invalid state when falling asleep.");
+                    }
+                }
+            },
+            Action::WakesUp => {
+                match (current_guard, asleep_since) {
+                    (Some(id), Some(asleep)) => {
+                        let mut guard = guard_overview.get_or_insert(id);
+                        guard.mark_asleep(asleep, log_entry.date_time.minute());
+                        asleep_since = None
+                    }
+                    _ => {
+                        panic!("Invalid state when waking up.");
+                    }
+                }
+            }
+        }
+    }
+
+    guard_overview
+}
 
 #[cfg(test)]
 mod tests {
@@ -172,5 +292,28 @@ mod tests {
     #[test]
     fn test_log_parsing() {
         assert_eq!(LogEntry::parse_from("[1518-07-13 23:58] Guard #2521 begins shift").unwrap(), LogEntry::new(Utc.ymd(1518, 7, 13).and_hms(23, 58, 0), Action::Guard(2521)));
+    }
+
+    #[test]
+    fn test_processing_log() {
+        let mut guard_overview = GuardOverview::new();
+        let mut guard_1 = guard_overview.get_or_insert(1);
+        guard_1.mark_asleep(10, 50);
+
+        let mut guard_2 = guard_overview.get_or_insert(2);
+        guard_2.mark_asleep(35, 40);
+        guard_2.mark_asleep(45, 50);
+
+        assert_eq!(
+            process_log(&vec![
+                LogEntry::new(Utc.ymd(1, 1, 1).and_hms(23, 58, 0), Action::Guard(1)),
+                LogEntry::new(Utc.ymd(1, 1, 1).and_hms(0, 10, 0), Action::FallsAsleep),
+                LogEntry::new(Utc.ymd(1, 1, 1).and_hms(0, 50, 0), Action::WakesUp),
+                LogEntry::new(Utc.ymd(1, 1, 2).and_hms(0, 10, 0), Action::Guard(2)),
+                LogEntry::new(Utc.ymd(1, 1, 2).and_hms(0, 35, 0), Action::FallsAsleep),
+                LogEntry::new(Utc.ymd(1, 1, 2).and_hms(0, 40, 0), Action::WakesUp),
+                LogEntry::new(Utc.ymd(1, 1, 2).and_hms(0, 45, 0), Action::FallsAsleep),
+                LogEntry::new(Utc.ymd(1, 1, 2).and_hms(0, 50, 0), Action::WakesUp),]),
+            guard_overview);
     }
 }
