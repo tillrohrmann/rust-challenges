@@ -1,19 +1,21 @@
-use std::fs::File;
-use std::io::BufReader;
-use std::io::BufRead;
-use std::io;
-use std::str::FromStr;
-use chrono::prelude::*;
-use regex::Regex;
-use regex::Captures;
-use regex::Match;
+#[macro_use]
+extern crate lazy_static;
+
 use std::error;
 use std::fmt;
 use std::fmt::Formatter;
+use std::fs::File;
+use std::io;
+use std::io::BufRead;
+use std::io::BufReader;
 use std::num::ParseIntError;
+use std::str::FromStr;
 
-#[macro_use]
-extern crate lazy_static;
+use chrono::prelude::*;
+use regex::Captures;
+use regex::Match;
+use regex::Regex;
+
 
 pub type ParseResult<T> = Result<T, Box<error::Error>>;
 
@@ -39,7 +41,7 @@ impl fmt::Display for ParseError {
 impl error::Error for ParseError {}
 
 #[derive(Debug, PartialEq)]
-struct LogEntry {
+pub struct LogEntry {
     date_time: DateTime<Utc>,
     action: Action
 }
@@ -87,7 +89,7 @@ impl LogEntry {
 }
 
 #[derive(Debug, PartialEq)]
-enum Action {
+pub enum Action {
     Guard(u32),
     WakesUp,
     FallsAsleep,
@@ -135,6 +137,18 @@ pub fn read_file(path: &str) -> io::Result<Vec<String>> {
 
     Ok(result)
 }
+
+pub fn read_log(path: &str) -> ParseResult<Vec<LogEntry>> {
+    let file_content = read_file(path)?;
+
+    let mut result = file_content.iter().map(|line| LogEntry::parse_from(line)).collect::<ParseResult<Vec<LogEntry>>>()?;
+
+    result.sort_by(|a, b| a.date_time.cmp(&b.date_time));
+
+    Ok(result)
+}
+
+
 
 #[cfg(test)]
 mod tests {

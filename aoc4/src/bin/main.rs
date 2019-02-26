@@ -1,5 +1,7 @@
 fn main() {
-    let file_content = aoc4::read_file("input.txt");
+    let log = aoc4::read_log("input.txt");
 
-    println!("{:?}", file_content.unwrap());
+    for logEntry in log.unwrap() {
+        println!("{:?}", logEntry);
+    }
 }
