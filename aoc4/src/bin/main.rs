@@ -3,7 +3,7 @@ fn main() {
 
     let guard_overview = aoc4::process_log(&log);
 
-    let max_guard = guard_overview.iter().max_by(|&a, &b| a.get_total_minutes_asleep().cmp(&b.get_total_minutes_asleep())).unwrap();
+    let max_guard = aoc4::strategy_2(&guard_overview);
 
     println!("{:?}", max_guard);
 

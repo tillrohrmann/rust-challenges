@@ -202,6 +202,10 @@ impl Guard {
         let (result, _) = self.minutes_asleep.iter().enumerate().max_by(|&(_, a), &(_, b)| a.cmp(b)).unwrap();
         result
     }
+
+    pub fn get_minute(&self, index: usize) -> u32 {
+        self.minutes_asleep[index]
+    }
 }
 
 #[derive(PartialEq, Debug)]
@@ -268,6 +272,19 @@ pub fn process_log(log: &Vec<LogEntry>) -> GuardOverview {
     }
 
     guard_overview
+}
+
+pub fn strategy_1(guard_overview: &GuardOverview) -> &Guard {
+    guard_overview.iter().max_by(|&a, &b| a.get_total_minutes_asleep().cmp(&b.get_total_minutes_asleep())).unwrap()
+}
+
+pub fn strategy_2(guard_overview: &GuardOverview) -> &Guard {
+    guard_overview.iter().max_by(|&a, &b| {
+        let a_max_index = a.find_minute_most_often_asleep();
+        let b_max_index = b.find_minute_most_often_asleep();
+
+        a.get_minute(a_max_index).cmp(&b.get_minute(b_max_index))
+    }).unwrap()
 }
 
 #[cfg(test)]
