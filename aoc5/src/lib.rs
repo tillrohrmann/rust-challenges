@@ -20,6 +20,17 @@ fn is_opposite(a: char, b: char) -> bool {
     a != b && (a.to_ascii_lowercase() == b || a == b.to_ascii_lowercase())
 }
 
+pub fn is_minimal(input: &str) -> bool {
+    let characters: Vec<char> = input.chars().collect();
+    for i in 0..(input.len() -1) {
+        if is_opposite(characters[i], characters[i + 1]) {
+            return false;
+        }
+    }
+
+    true
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
