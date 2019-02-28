@@ -5,6 +5,7 @@ use std::num::ParseIntError;
 use std::error::Error;
 use std::fmt;
 use std::collections::VecDeque;
+use std::collections::HashMap;
 
 type GenericResult<T> = Result<T, Box<dyn Error>>;
 
@@ -30,17 +31,17 @@ impl fmt::Display for GenericError {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-struct Coordinate(usize, usize);
+pub struct Coordinate(usize, usize);
 
 #[derive(Clone, PartialEq, Debug)]
-enum Field {
+pub enum Field {
     Free,
     Taken(u8, usize),
     Border,
 }
 
 #[derive(PartialEq, Debug)]
-struct Map {
+pub struct Map {
     height: usize,
     width: usize,
     map: Vec<Field>,
@@ -65,6 +66,37 @@ impl Map {
 
     pub fn set(&mut self, x: usize, y: usize, field: Field) {
         self.map[Map::flatten_coords(x, y, self.width)] = field;
+    }
+
+    pub fn calculate_finite_patch_sizes(&self) -> std::collections::HashMap<u8, usize> {
+        let mut result = HashMap::with_capacity(10);
+
+        for field in &self.map {
+            match field {
+                &Field::Taken(id, _) => {
+                    *result.entry(id).or_insert(0) += 1;
+                },
+                _ => (),
+            }
+        }
+
+        for x in 0..self.width {
+            Map::remove_infinite(self.get(x, 0), &mut result);
+            Map::remove_infinite(self.get(x, self.height - 1), &mut result);
+        }
+
+        for y in 0..self.height {
+            Map::remove_infinite(self.get(0, y), &mut result);
+            Map::remove_infinite(self.get(self.width - 1, y), &mut result);
+        }
+
+        result
+    }
+
+    fn remove_infinite(field: &Field, patches: &mut std::collections::HashMap<u8, usize>) {
+        if let &Field::Taken(id, _) = field {
+            patches.remove(&id);
+        }
     }
 }
 
@@ -107,7 +139,13 @@ impl Candidate {
     }
 }
 
-fn create_map(initial_points: &Vec<Coordinate>) -> Map {
+pub fn read_coordinates(path: &str) -> GenericResult<Vec<Coordinate>> {
+    let raw_content = read_file_content(path)?;
+
+    raw_content.iter().map(|line| parse_coordinates(line)).collect()
+}
+
+pub fn create_map(initial_points: &Vec<Coordinate>) -> Map {
     let (max_width, max_height) = initial_points.iter().fold((0, 0), |(width, height), &Coordinate(x, y)| (usize::max(width, x), usize::max(height, y)));
     let mut map = Map::new(max_width + 1, max_height + 1);
 

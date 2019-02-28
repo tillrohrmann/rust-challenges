@@ -1,0 +1,9 @@
+use aoc6::create_map;
+
+fn main() {
+    let coordinates = aoc6::read_coordinates("input.txt").unwrap();
+
+    let map = create_map(&coordinates);
+
+    println!("{:?}", map.calculate_finite_patch_sizes().values().max());
+}
