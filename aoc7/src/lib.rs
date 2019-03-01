@@ -7,9 +7,9 @@ use regex::Regex;
 use aoc_common::GenericError;
 
 #[derive(Debug, PartialEq)]
-struct Dependency(char, char);
+pub struct Dependency(char, char);
 
-fn read_dependencies(path: &str) -> GenericResult<Vec<Dependency>> {
+pub fn read_dependencies(path: &str) -> GenericResult<Vec<Dependency>> {
     let raw_input = aoc_common::read_raw_file_content(path)?;
 
     raw_input.iter().map(|input| parse_dependency(input)).collect()
