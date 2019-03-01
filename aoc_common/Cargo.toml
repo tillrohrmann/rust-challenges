@@ -1,5 +1,5 @@
 [package]
-name = "aoc-common"
+name = "aoc_common"
 version = "0.1.0"
 authors = ["Till Rohrmann <trohrmann@apache.org>"]
 edition = "2018"
