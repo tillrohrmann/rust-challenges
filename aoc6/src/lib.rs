@@ -1,11 +1,13 @@
-use std::io;
-use std::io::BufReader;
-use std::io::BufRead;
-use std::num::ParseIntError;
+use std::collections::HashMap;
+use std::collections::VecDeque;
 use std::error::Error;
 use std::fmt;
-use std::collections::VecDeque;
-use std::collections::HashMap;
+use std::io;
+use std::io::BufRead;
+use std::io::BufReader;
+use std::num::ParseIntError;
+
+use itertools::Itertools;
 
 type GenericResult<T> = Result<T, Box<dyn Error>>;
 
@@ -32,6 +34,15 @@ impl fmt::Display for GenericError {
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Coordinate(usize, usize);
+
+impl Coordinate {
+    fn manhattan_distance(&self, other: &Coordinate) -> usize {
+        let &Coordinate(x, y) = self;
+        let &Coordinate(other_x, other_y) = other;
+
+        ((x as isize - other_x as isize).abs() + (y as isize - other_y as isize).abs()) as usize
+    }
+}
 
 #[derive(Clone, PartialEq, Debug)]
 pub enum Field {
@@ -145,8 +156,8 @@ pub fn read_coordinates(path: &str) -> GenericResult<Vec<Coordinate>> {
     raw_content.iter().map(|line| parse_coordinates(line)).collect()
 }
 
-pub fn create_map(initial_points: &Vec<Coordinate>) -> Map {
-    let (max_width, max_height) = initial_points.iter().fold((0, 0), |(width, height), &Coordinate(x, y)| (usize::max(width, x), usize::max(height, y)));
+pub fn create_patch_map(initial_points: &Vec<Coordinate>) -> Map {
+    let (max_width, max_height) = find_map_dimensions(initial_points);
     let mut map = Map::new(max_width + 1, max_height + 1);
 
     let mut queue: VecDeque<Candidate> = initial_points.iter().enumerate().map(|(index, coordinate)| Candidate(index as u8, 0,coordinate.clone())).collect();
@@ -180,6 +191,26 @@ pub fn create_map(initial_points: &Vec<Coordinate>) -> Map {
     map
 }
 
+fn find_map_dimensions(initial_points: &Vec<Coordinate>) -> (usize, usize) {
+    initial_points
+        .iter()
+        .fold((0, 0), |(width, height), &Coordinate(x, y)| (usize::max(width, x), usize::max(height, y)))
+}
+
+pub fn create_distance_map(initial_points: &Vec<Coordinate>, max_distance_sum: usize) -> Map {
+    let (width, height) = find_map_dimensions(initial_points);
+    let mut map = Map::new(width, height);
+
+    for (x, y) in (0..width).cartesian_product((0..height)) {
+        let distance = initial_points.iter().map(|coordinate| coordinate.manhattan_distance(&Coordinate(x, y))).sum();
+        if distance < max_distance_sum {
+            map.set(x, y, Field::Taken(0, distance))
+        }
+    }
+
+    map
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -201,6 +232,6 @@ mod tests {
         map.set(2,0, Field::Border);
         map.set(2, 1, Field::Taken(1, 1));
         map.set(2, 2, Field::Taken(1, 0));
-        assert_eq!(create_map(&vec![Coordinate(0, 0), Coordinate(2, 2)]), map);
+        assert_eq!(create_patch_map(&vec![Coordinate(0, 0), Coordinate(2, 2)]), map);
     }
 }
