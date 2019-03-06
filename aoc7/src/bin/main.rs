@@ -7,5 +7,7 @@ fn main() {
 
     let graph = DependencyGraph::generate_graph(&dependencies);
 
-    println!("Graph: {:?}", graph);
+    let topological_order = graph.sort_topologically();
+
+    println!("Topological sort order: {}", topological_order.iter().collect::<String>());
 }

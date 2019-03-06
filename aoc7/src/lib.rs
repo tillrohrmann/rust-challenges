@@ -6,10 +6,11 @@ use aoc_common::GenericResult;
 use regex::Regex;
 use aoc_common::GenericError;
 use std::rc::Rc;
-use std::collections::HashSet;
+use std::collections::{HashSet, BinaryHeap};
 use std::collections::HashMap;
 use std::cell::RefCell;
 use std::rc::Weak;
+use std::cmp::Ordering;
 
 #[derive(Debug, PartialEq)]
 pub struct Dependency(char, char);
@@ -52,6 +53,24 @@ pub struct DependencyGraph {
     vertices: HashMap<char, Rc<DependencyVertex>>,
 }
 
+#[derive(Eq, PartialEq)]
+struct Candidate(char);
+
+impl Ord for Candidate {
+    fn cmp(&self, other: &Self) -> Ordering {
+        let &Candidate(other_char) = other;
+        let Candidate(this_char) = self;
+
+        other_char.cmp(this_char)
+    }
+}
+
+impl PartialOrd for Candidate {
+    fn partial_cmp(&self, other: &Candidate) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
 impl DependencyGraph {
     pub fn new(vertices: HashMap<char, Rc<DependencyVertex>>) -> DependencyGraph {
         DependencyGraph {
@@ -60,7 +79,7 @@ impl DependencyGraph {
     }
 
     pub fn generate_graph(dependencies: &Vec<Dependency>) -> DependencyGraph {
-        let mut vertices: HashMap<char, Rc<DependencyVertex>> = dependencies
+        let vertices: HashMap<char, Rc<DependencyVertex>> = dependencies
             .iter()
             .flat_map(|&Dependency(source, target)| vec![source, target])
             .collect::<HashSet<char>>()
@@ -79,6 +98,39 @@ impl DependencyGraph {
         DependencyGraph {
             vertices,
         }
+    }
+
+    pub fn sort_topologically(&self) -> Vec<char> {
+        let mut unfulfilled_dependencies: HashMap<char, usize> = HashMap::with_capacity(self.vertices.len());
+        let mut priority_heap: BinaryHeap<Candidate> = BinaryHeap::new();
+        let mut result = Vec::with_capacity(self.vertices.len());
+
+        for dependency_vertex in self.vertices.values() {
+            if dependency_vertex.incoming.borrow().len() == 0 {
+                priority_heap.push(Candidate(dependency_vertex.id));
+            } else {
+                unfulfilled_dependencies.insert(dependency_vertex.id, dependency_vertex.incoming.borrow().len());
+            }
+        }
+
+        while let Some(Candidate(next)) = priority_heap.pop() {
+            result.push(next);
+
+            let vertex = self.vertices.get(&next).unwrap();
+
+            for outgoing in vertex.outgoing.borrow().keys() {
+                if let Some(value) = unfulfilled_dependencies.get_mut(outgoing) {
+                    *value -= 1;
+
+                    if *value == 0 {
+                        unfulfilled_dependencies.remove(outgoing);
+                        priority_heap.push(Candidate(*outgoing));
+                    }
+                }
+            }
+        }
+
+        result
     }
 }
 
@@ -139,11 +191,18 @@ mod tests {
             })
             .collect::<HashMap<char, Rc<DependencyVertex>>>();
 
-        let dependency_graph = dbg!(DependencyGraph::new(vertices));
+        let dependency_graph = DependencyGraph::new(vertices);
 
         let dependencies = vec![Dependency('A', 'B')];
-        let generated_graph = dbg!(DependencyGraph::generate_graph(&dependencies));
+        let generated_graph = DependencyGraph::generate_graph(&dependencies);
 
         assert_eq!(generated_graph, dependency_graph);
+    }
+
+    #[test]
+    fn test_sort_topologically() {
+        let dependencies =  vec![Dependency('A', 'B'), Dependency('C', 'B'), Dependency('B', 'D')];
+        let graph = DependencyGraph::generate_graph(&dependencies);
+        assert_eq!(graph.sort_topologically(), vec!['A', 'C', 'B', 'D']);
     }
 }
