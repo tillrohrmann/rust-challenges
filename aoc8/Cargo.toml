@@ -1,0 +1,8 @@
+[package]
+name = "aoc8"
+version = "0.1.0"
+authors = ["Till Rohrmann <trohrmann@apache.org>"]
+edition = "2018"
+
+[dependencies]
+aoc_common = { path = "../aoc_common" }
