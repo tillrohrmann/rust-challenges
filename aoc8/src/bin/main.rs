@@ -6,4 +6,5 @@ fn main() {
     let tree = TreeNode::parse_tree(&input).unwrap();
 
     println!("{}", tree.sum_meta_data());
+    println!("{}", tree.calculate_indexed_value());
 }

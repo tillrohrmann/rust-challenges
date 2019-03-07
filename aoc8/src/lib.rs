@@ -45,6 +45,19 @@ impl TreeNode {
     pub fn sum_meta_data(&self) -> usize {
         self.children.iter().map(|child| child.sum_meta_data()).sum::<usize>() + self.meta_data.iter().sum::<usize>()
     }
+
+    pub fn calculate_indexed_value(&self) -> usize {
+        if self.children.is_empty() {
+            self.meta_data.iter().sum::<usize>()
+        } else {
+            self.meta_data.iter()
+                .map(|&index| self.children
+                    .get(index - 1)
+                    .map(|child| child.calculate_indexed_value())
+                    .unwrap_or(0))
+                .sum::<usize>()
+        }
+    }
 }
 
 pub fn read_input_from_file(path: &str) -> GenericResult<Vec<usize>> {
@@ -85,5 +98,10 @@ mod tests {
     #[test]
     fn test_meta_data_sum() {
         assert_eq!(create_test_tree().sum_meta_data(), 138);
+    }
+
+    #[test]
+    fn test_indexed_value() {
+        assert_eq!(create_test_tree().calculate_indexed_value(), 66);
     }
 }
