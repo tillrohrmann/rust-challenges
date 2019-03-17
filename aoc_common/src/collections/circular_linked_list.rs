@@ -93,8 +93,10 @@ impl<T> CircularLinkedList<T> {
             } else {
                 let pop_node = node.as_ref();
                 self.head = pop_node.next;
-                pop_node.prev.unwrap().as_mut().next = pop_node.next;
-                pop_node.next.unwrap().as_mut().prev = pop_node.prev;
+                let mut prev_node = pop_node.prev.unwrap();
+                prev_node.as_mut().next = pop_node.next;
+                let mut next_node = pop_node.next.unwrap();
+                next_node.as_mut().prev = pop_node.prev;
             }
 
             self.len -= 1;
@@ -113,6 +115,10 @@ impl<T> CircularLinkedList<T> {
             tail: None,
             len: 0,
         }
+    }
+
+    pub fn len(&self) -> usize {
+        self.len
     }
 
     pub fn push_front(&mut self, value: T) {

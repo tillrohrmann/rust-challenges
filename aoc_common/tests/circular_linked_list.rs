@@ -17,7 +17,11 @@ fn assert_contains<T, I>(mut circular_list: CircularLinkedList<T>, mut expected:
     where T : PartialEq + std::fmt::Debug,
     I : Iterator<Item = T> {
 
-    assert_eq!(circular_list.pop_front(), expected.next());
+    while let Some(expected_value) = expected.next() {
+        assert_eq!(circular_list.pop_front(), Some(expected_value));
+    }
+
+    assert_eq!(circular_list.len(), 0);
 }
 
 #[test]
