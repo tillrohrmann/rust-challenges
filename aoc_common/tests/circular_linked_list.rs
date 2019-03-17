@@ -1,6 +1,7 @@
 extern crate aoc_common;
 
 use aoc_common::collections::CircularLinkedList;
+use core::borrow::Borrow;
 
 #[test]
 fn test_push() {
@@ -38,4 +39,50 @@ fn test_iterator() {
     let vector_collection = circular_list.iter().map(|v| v.clone()).collect::<Vec<usize>>();
 
     assert_eq!(vector_collection, vec![1, 2, 3]);
+}
+
+#[test]
+fn test_cursor() {
+    let mut circular_list = vec![1, 2, 3].into_iter().collect::<CircularLinkedList<usize>>();
+
+    let mut cursor = circular_list.cursor_mut();
+
+    assert_eq!(cursor.current(), Some(&mut 1));
+    assert_eq!(cursor.current(), Some(&mut 1));
+
+    cursor.move_next();
+    assert_eq!(cursor.current(), Some(&mut 2));
+
+    cursor.move_next();
+    assert_eq!(cursor.current(), Some(&mut 3));
+
+    cursor.move_next();
+    assert_eq!(cursor.current(), Some(&mut 1));
+
+    cursor.move_back();
+    assert_eq!(cursor.current(), Some(&mut 3));
+
+    cursor.move_back();
+    assert_eq!(cursor.current(), Some(&mut 2));
+}
+
+#[test]
+fn test_cursor_insert() {
+    let mut circular_list = vec![1].into_iter().collect::<CircularLinkedList<usize>>();
+
+    let mut cursor = circular_list.cursor_mut();
+
+    cursor.insert(0);
+    cursor.move_next();
+
+    cursor.insert(2);
+    cursor.insert(3);
+
+    cursor.move_back();
+
+    assert_eq!(cursor.current(), Some(&mut 3));
+
+    let vector: Vec<usize> = circular_list.iter().map(|v| v.clone()).collect();
+
+    assert_eq!(vector, vec![2, 3, 0, 1])
 }

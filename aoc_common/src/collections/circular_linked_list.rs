@@ -1,5 +1,6 @@
 use std::ptr::NonNull;
 use std::iter::FromIterator;
+use std::fmt::Debug;
 
 pub struct CircularLinkedList<T> {
     head: Option<NonNull<Node<T>>>,
@@ -59,13 +60,82 @@ impl<'a, T> Iterator for Iter<'a, T> {
     }
 }
 
-//pub struct CursorMut<T> {
-//
-//}
-//
-//impl<T> CursorMut<T> {
-//
-//}
+pub struct CursorMut<'a, T> {
+    list: &'a mut CircularLinkedList<T>,
+    current_node: Option<NonNull<Node<T>>>
+}
+
+// private methods
+impl<'a, T> CursorMut<'a, T> {
+    fn new(list: &'a mut CircularLinkedList<T>) -> CursorMut<'a, T> {
+        let current_node = list.head;
+        CursorMut {
+            list,
+            current_node,
+        }
+    }
+
+    fn insert_node(&mut self, value: T) {
+        match self.current_node {
+            None => self.list.push_front(value),
+            Some(mut next) => unsafe {
+                let mut prev = match next.as_ref().prev {
+                    None => panic!("Invalid state where node has no predecessor."),
+                    Some(mut prev) => prev
+                };
+
+                let mut new_node = Node::new(value);
+
+                new_node.next = Some(next);
+                new_node.prev = Some(prev);
+
+                let mut new_node = Box::into_raw_non_null(Box::new(new_node));
+
+                next.as_mut().prev = Some(new_node);
+                prev.as_mut().next = Some(new_node);
+
+                if self.list.head == Some(next) {
+                    self.list.head = Some(new_node);
+                }
+
+                self.list.len += 1;
+            }
+        }
+    }
+
+    fn remove_node(&mut self) -> Option<Box<Node<T>>> {
+        None
+    }
+}
+
+// public methods
+impl<'a, T: Debug> CursorMut<'a, T> {
+    pub fn current(&mut self) -> Option<&'a mut T> {
+        self.current_node.map(|nn_node| unsafe {
+            &mut (*nn_node.as_ptr()).value
+        })
+    }
+
+    pub fn move_next(&mut self) {
+        self.current_node = self.current_node.and_then(|nn_node| unsafe {
+            nn_node.as_ref().next
+        })
+    }
+
+    pub fn move_back(&mut self) {
+        self.current_node = self.current_node.and_then(|nn_node| unsafe {
+            nn_node.as_ref().prev
+        })
+    }
+
+    pub fn insert(&mut self, value: T) {
+        self.insert_node(value);
+    }
+
+    pub fn remove(&mut self) -> Option<T> {
+        self.remove_node().map(|node| node.value)
+    }
+}
 
 // private methods
 impl<T> CircularLinkedList<T> {
@@ -179,6 +249,10 @@ impl<T> CircularLinkedList<T> {
 
     pub fn iter(&self) -> Iter<'_, T> {
         Iter::new(self)
+    }
+
+    pub fn cursor_mut(&mut self) -> CursorMut<'_, T> {
+        CursorMut::new(self)
     }
 }
 
