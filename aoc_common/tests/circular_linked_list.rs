@@ -1,0 +1,28 @@
+extern crate aoc_common;
+
+use aoc_common::collections::CircularLinkedList;
+
+#[test]
+fn test_push() {
+    let mut circular_list = CircularLinkedList::<usize>::new();
+
+    circular_list.push_front(2);
+    circular_list.push_front(1);
+    circular_list.push_back(3);
+
+    assert_contains(circular_list, vec![1, 2, 3].into_iter());
+}
+
+fn assert_contains<T, I>(mut circular_list: CircularLinkedList<T>, mut expected: I)
+    where T : PartialEq + std::fmt::Debug,
+    I : Iterator<Item = T> {
+
+    assert_eq!(circular_list.pop_front(), expected.next());
+}
+
+#[test]
+fn test_from_iterator() {
+    let circular_list = vec![1, 2, 3].into_iter().collect::<CircularLinkedList<usize>>();
+
+    assert_contains(circular_list, vec![1, 2, 3].into_iter());
+}
