@@ -23,6 +23,50 @@ impl<T> Node<T> {
     }
 }
 
+pub struct Iter<'a, T> {
+    list: &'a CircularLinkedList<T>,
+    current_node: Option<NonNull<Node<T>>>,
+}
+
+impl<'a, T> Iter<'a, T> {
+    fn new(list: &'a CircularLinkedList<T>) -> Iter<'a, T> {
+        Iter {
+            list,
+            current_node: list.head,
+        }
+    }
+}
+
+impl<'a, T> Iterator for Iter<'a, T> {
+    type Item = &'a T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let result: Option<Self::Item> = self.current_node.map(|nn_node| unsafe {
+            &(*nn_node.as_ptr()).value
+        });
+
+        unsafe {
+            self.current_node = self.current_node.and_then(|nn_node| {
+                if self.list.tail == Some(nn_node) {
+                    None
+                } else {
+                    nn_node.as_ref().next
+                }
+            })
+        }
+
+        result
+    }
+}
+
+//pub struct CursorMut<T> {
+//
+//}
+//
+//impl<T> CursorMut<T> {
+//
+//}
+
 // private methods
 impl<T> CircularLinkedList<T> {
     fn insert_between_head_tail(&mut self, value: T) -> NonNull<Node<T>> {
@@ -131,6 +175,10 @@ impl<T> CircularLinkedList<T> {
 
     pub fn pop_front(&mut self) -> Option<T> {
         self.pop_node_front().map(|node| node.value)
+    }
+
+    pub fn iter(&self) -> Iter<'_, T> {
+        Iter::new(self)
     }
 }
 

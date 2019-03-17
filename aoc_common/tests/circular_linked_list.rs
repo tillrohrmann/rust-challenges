@@ -30,3 +30,12 @@ fn test_from_iterator() {
 
     assert_contains(circular_list, vec![1, 2, 3].into_iter());
 }
+
+#[test]
+fn test_iterator() {
+    let circular_list = vec![1, 2, 3].into_iter().collect::<CircularLinkedList<usize>>();
+
+    let vector_collection = circular_list.iter().map(|v| v.clone()).collect::<Vec<usize>>();
+
+    assert_eq!(vector_collection, vec![1, 2, 3]);
+}
