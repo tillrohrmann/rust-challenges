@@ -5,3 +5,4 @@ authors = ["Till Rohrmann <trohrmann@apache.org>"]
 edition = "2018"
 
 [dependencies]
+aoc_common = { path = "../aoc_common" }
