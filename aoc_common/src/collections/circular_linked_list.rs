@@ -304,6 +304,14 @@ impl<A> FromIterator<A> for CircularLinkedList<A> {
     }
 }
 
+impl<T> Drop for CircularLinkedList<T> {
+    fn drop(&mut self) {
+        while let Some(_) = self.pop_node_front() {
+            ;
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
 
