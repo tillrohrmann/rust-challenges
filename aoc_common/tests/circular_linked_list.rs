@@ -86,3 +86,19 @@ fn test_cursor_insert() {
 
     assert_eq!(vector, vec![2, 3, 0, 1])
 }
+
+#[test]
+fn test_cursor_remove() {
+    let mut circular_list = vec![1, 2, 3].into_iter().collect::<CircularLinkedList<usize>>();
+
+    let mut cursor = circular_list.cursor_mut();
+
+    cursor.move_next();
+
+    assert_eq!(cursor.current(), Some(&mut 2));
+    assert_eq!(cursor.remove(), Some(2));
+
+    assert_eq!(cursor.current(), Some(&mut 3));
+
+    assert_contains(circular_list, vec![1, 3].into_iter());
+}

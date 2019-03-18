@@ -104,12 +104,47 @@ impl<'a, T> CursorMut<'a, T> {
     }
 
     fn remove_node(&mut self) -> Option<Box<Node<T>>> {
-        None
+        self.current_node.map(|nn_node| unsafe {
+            let node = nn_node.as_ref();
+            let mut next = match node.next {
+                None => panic!("Invalid state where node has no successor."),
+                Some(next) => next
+            };
+
+            let mut prev = match node.prev {
+                None => panic!("Invalid state where node has no predecessor."),
+                Some(prev) => prev
+            };
+
+            if prev == next {
+                self.current_node = None;
+                self.list.head = None;
+                self.list.tail = None;
+            } else {
+                let prev_node = prev.as_mut();
+                let next_node = next.as_mut();
+
+                prev_node.next = node.next;
+                next_node.prev = node.prev;
+
+                if self.list.head == Some(nn_node) {
+                    self.list.head = Some(next)
+                } else if self.list.tail == Some(nn_node) {
+                    self.list.tail = Some(prev);
+                }
+
+                self.current_node = Some(next);
+            }
+
+            self.list.len -= 1;
+
+            Box::from_raw(nn_node.as_ptr())
+        })
     }
 }
 
 // public methods
-impl<'a, T: Debug> CursorMut<'a, T> {
+impl<'a, T> CursorMut<'a, T> {
     pub fn current(&mut self) -> Option<&'a mut T> {
         self.current_node.map(|nn_node| unsafe {
             &mut (*nn_node.as_ptr()).value
