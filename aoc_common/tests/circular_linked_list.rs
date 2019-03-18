@@ -78,13 +78,13 @@ fn test_cursor_insert() {
     cursor.insert(2);
     cursor.insert(3);
 
-    cursor.move_back();
+    cursor.move_next();
 
     assert_eq!(cursor.current(), Some(&mut 3));
 
     let vector: Vec<usize> = circular_list.iter().map(|v| v.clone()).collect();
 
-    assert_eq!(vector, vec![2, 3, 0, 1])
+    assert_eq!(vector, vec![1, 0, 3, 2])
 }
 
 #[test]

@@ -78,10 +78,10 @@ impl<'a, T> CursorMut<'a, T> {
     fn insert_node(&mut self, value: T) {
         match self.current_node {
             None => self.list.push_front(value),
-            Some(mut next) => unsafe {
-                let mut prev = match next.as_ref().prev {
+            Some(mut prev) => unsafe {
+                let mut next = match prev.as_ref().next {
                     None => panic!("Invalid state where node has no predecessor."),
-                    Some(mut prev) => prev
+                    Some(mut next) => next
                 };
 
                 let mut new_node = Node::new(value);
@@ -94,8 +94,8 @@ impl<'a, T> CursorMut<'a, T> {
                 next.as_mut().prev = Some(new_node);
                 prev.as_mut().next = Some(new_node);
 
-                if self.list.head == Some(next) {
-                    self.list.head = Some(new_node);
+                if self.list.tail == Some(prev) {
+                    self.list.tail = Some(new_node);
                 }
 
                 self.list.len += 1;
