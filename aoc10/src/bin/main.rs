@@ -5,7 +5,11 @@ fn main() {
     let raw_file_content = read_raw_file_content("test_input.txt").unwrap();
     let points_with_velocity = parse_points_with_velocity(&raw_file_content).unwrap();
 
-    let display_map = DisplayMap::new(points_with_velocity);
+    let mut display_map = DisplayMap::new(points_with_velocity);
 
-    display_map.display();
+    for i in 0..=4 {
+        println!("Time: {}", i);
+        display_map.display();
+        display_map.advance();
+    }
 }
