@@ -18,6 +18,36 @@ impl Vector {
     }
 }
 
+impl std::ops::Sub for Vector {
+    type Output = Vector;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        Vector::new(self.x - rhs.x, self.y - rhs.y)
+    }
+}
+
+impl std::ops::SubAssign for Vector {
+    fn sub_assign(&mut self, rhs: Self) {
+        self.x -= rhs.x;
+        self.y -= rhs.y;
+    }
+}
+
+impl std::ops::Add for Vector {
+    type Output = Vector;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Vector::new(self.x + rhs.x, self.y + rhs.y)
+    }
+}
+
+impl std::ops::AddAssign for Vector {
+    fn add_assign(&mut self, rhs: Self) {
+        self.x += rhs.x;
+        self.y += rhs.y;
+    }
+}
+
 #[derive(Debug, PartialOrd, PartialEq)]
 pub struct PointWithVelocity {
     position: Vector,
@@ -62,48 +92,32 @@ fn parse_isize(input: &str) -> GenericResult<isize> {
     input.parse::<isize>().map_err(|e| e.into())
 }
 
-pub struct DisplayMap {
+pub struct PointMap {
     points_with_velocity: Vec<PointWithVelocity>,
-    min_vector: Vector,
-    max_vector: Vector,
-    field: Vec<Vec<char>>,
+    size: Vector,
 }
 
-impl DisplayMap {
+impl PointMap {
     const EMPTY_CHAR: char = ' ';
     const POINT_CHAR: char = '#';
 
-    pub fn new(points_with_velocity: Vec<PointWithVelocity>) -> DisplayMap {
-        let (min_x, max_x) = DisplayMap::find_min_max(&points_with_velocity, |pv| pv.position.x);
-        let (min_y, max_y) = DisplayMap::find_min_max(&points_with_velocity, |pv| pv.position.y);
+    pub fn new(points_with_velocity: Vec<PointWithVelocity>) -> PointMap {
+        let (min_x, max_x) = PointMap::find_min_max(&points_with_velocity, |pv| pv.position.x);
+        let (min_y, max_y) = PointMap::find_min_max(&points_with_velocity, |pv| pv.position.y);
         let min_vector = Vector::new(min_x, min_y);
-        let max_vector = Vector::new(max_x, max_y);
+        let size = Vector::new(max_x - min_x + 1, max_y - min_y + 1);
 
-        let mut field = vec![vec![DisplayMap::EMPTY_CHAR; (max_vector.x - min_vector.x + 1) as usize]; (max_vector.y - min_vector.y + 1) as usize];
+        let normalized_points_with_velocity = points_with_velocity.into_iter().map(|points_with_velocity| {
+            PointWithVelocity::new(
+                points_with_velocity.position - min_vector,
+                points_with_velocity.velocity,
+            )
+        }).collect();
 
-        for point_with_velocity in &points_with_velocity {
-            let position = point_with_velocity.position;
-            field[DisplayMap::normalize(position.y, min_vector.y)][DisplayMap::normalize(position.x, min_vector.x)] = DisplayMap::POINT_CHAR;
+        PointMap {
+            points_with_velocity: normalized_points_with_velocity,
+            size,
         }
-
-        DisplayMap {
-            points_with_velocity,
-            min_vector,
-            max_vector,
-            field,
-        }
-    }
-
-    fn normalize(coordinate: isize, min_coordinate: isize) -> usize {
-        (coordinate - min_coordinate) as usize
-    }
-
-    fn normalize_x(&self, x: isize) -> usize {
-        (x - self.min_vector.x) as usize
-    }
-
-    fn normalize_y(&self, y: isize) -> usize {
-        (y - self.min_vector.y) as usize
     }
 
     fn find_min_max(points_with_velocity: &Vec<PointWithVelocity>, field_selector: fn(&PointWithVelocity) -> isize) -> (isize, isize) {
@@ -114,45 +128,20 @@ impl DisplayMap {
     }
 
     pub fn display(&self) {
-        for line in &self.field {
+        let mut field = vec![vec![PointMap::EMPTY_CHAR; self.size.x as usize]; self.size.y as usize];
+        for point in self.points_with_velocity.iter() {
+            field[point.position.y as usize][point.position.x as usize] = PointMap::POINT_CHAR;
+        }
+
+        for line in field.iter() {
             println!("{:?}", line);
         }
     }
 
     pub fn advance(&mut self) {
-        for point in self.points_with_velocity.iter() {
-            let y = self.normalize_y(point.position.y);
-            let x = self.normalize_x(point.position.x);
-            self.field[y][x] = DisplayMap::EMPTY_CHAR;
-        }
-
         for point in self.points_with_velocity.iter_mut() {
-            point.position.x += point.velocity.x;
-            point.position.y += point.velocity.y;
+            point.position += point.velocity;
         }
-
-        for point in self.points_with_velocity.iter() {
-            let y = self.normalize_y(point.position.y);
-            let x = self.normalize_x(point.position.x);
-            self.field[y][x] = DisplayMap::POINT_CHAR;
-        }
-    }
-
-    pub fn calculate_number_components(&self) -> usize {
-        let mut components: Vec<Vec<usize>> = vec![vec![usize::max_value(); self.field[0].len()]; self.field.len()];
-        let mut working_set = HashSet::new();
-
-        for (index, point) in self.points_with_velocity.iter().enumerate() {
-            let position = point.position;
-            components[self.normalize_y(position.y)][self.normalize_x(position.x)] = index;
-            working_set.insert(position);
-        }
-
-        while let Some(point) = working_set.iter().next() {
-            let min_neighbour = find_min_neighbour(&components, point);
-        }
-
-        42
     }
 }
 
