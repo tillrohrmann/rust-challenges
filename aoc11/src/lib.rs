@@ -4,7 +4,10 @@ pub struct FuelGrid {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct MaxPower(usize, usize, isize);
+pub struct Size(usize, usize);
+
+#[derive(Debug, PartialEq)]
+pub struct MaxPower(pub usize, pub usize, pub Size, pub isize);
 
 impl FuelGrid {
     pub fn new(width: usize, height: usize, serial_number: isize) -> FuelGrid {
@@ -55,7 +58,7 @@ impl FuelGrid {
             }
         }
 
-        MaxPower(max_x + 1, max_y + 1, max_power)
+        MaxPower(max_x + 1, max_y + 1, Size(w, h), max_power)
     }
 }
 
@@ -81,6 +84,6 @@ mod tests {
     #[test]
     fn test_max_power_square() {
         let grid = FuelGrid::new(300, 300, 18);
-        assert_eq!(grid.max_power_square(3, 3), MaxPower(33, 45, 29));
+        assert_eq!(grid.max_power_square(3, 3), MaxPower(33, 45, Size(3, 3), 29));
     }
 }
