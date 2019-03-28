@@ -6,3 +6,4 @@ edition = "2018"
 
 [dependencies]
 aoc_common = { path = "../aoc_common" }
+bit-vec = "0.5.1"
