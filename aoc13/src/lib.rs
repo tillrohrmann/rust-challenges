@@ -53,6 +53,10 @@ impl Car {
 
         Car::new(self.position + new_direction, new_direction, (self.crossings_counter + 1) % 3)
     }
+
+    pub fn get_position(&self) -> Point {
+        self.position
+    }
 }
 
 impl Display for Car {
@@ -169,7 +173,7 @@ impl StreetMap {
         }
     }
 
-    pub fn advance(&mut self) {
+    pub fn advance(&mut self, remove_collision: bool) {
         let mut cars_in_order = BinaryHeap::with_capacity(self.cars.len());
         let mut new_positions = HashSet::with_capacity(self.cars.len());
         let collisions = self.check_collision();
@@ -191,16 +195,32 @@ impl StreetMap {
             new_cars.push(new_car);
         }
 
+        let new_cars = if remove_collision {
+            let count_cars_per_position = StreetMap::count_cars_per_position(&new_cars);
+            new_cars.into_iter().filter(|car| *count_cars_per_position.get(&car.position).unwrap_or(&0) <= 1).collect()
+        } else {
+            new_cars
+        };
+
         self.cars = new_cars;
     }
 
     pub fn check_collision(&self) -> Vec<Point> {
-        let mut counter = HashMap::with_capacity(self.cars.len());
-        for car in self.cars.iter() {
-            *counter.entry(&car.position).or_insert(0) += 1;
-        }
+        let counter = StreetMap::count_cars_per_position(&self.cars);
 
-        counter.iter().filter(|&(&point, &count)| count > 1).map(|(&&p, count)| p).collect()
+        counter.iter().filter(|&(&point, &count)| count > 1).map(|(&p, count)| p).collect()
+    }
+
+    fn count_cars_per_position(cars: &Vec<Car>) -> HashMap<Point, usize> {
+        let mut counter = HashMap::with_capacity(cars.len());
+        for car in cars.iter() {
+            *counter.entry(car.position).or_insert(0) += 1;
+        }
+        counter
+    }
+
+    pub fn get_cars(&self) -> &Vec<Car> {
+        &self.cars
     }
 }
 
