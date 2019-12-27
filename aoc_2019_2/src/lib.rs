@@ -33,12 +33,22 @@ impl CommandLike for Command {
             Add(_, _, _) => 4,
         }
     }
+
+    fn execute(&self, memory: &mut Vec<u32>) {
+        match *self {
+            Stop => (),
+            Add(src_a, src_b, dst) => memory[dst] = memory[src_a] + memory[src_b],
+            Multiply(src_a, src_b, dst) => memory[dst] = memory[src_a] * memory[src_b],
+        }
+    }
 }
 
 trait CommandLike {
     fn is_stop(&self) -> bool;
 
     fn command_length(&self) -> usize;
+
+    fn execute(&self, memory: &mut Vec<u32>);
 }
 
 impl IntComputer {
@@ -51,7 +61,7 @@ impl IntComputer {
             let command_result = self.next_command();
 
             let optional_result = command_result.map(|command| {
-                self.execute_command(&command);
+                command.execute(&mut self.memory);
                 self.pointer += command.command_length();
 
                 if command.is_stop() {
@@ -84,14 +94,6 @@ impl IntComputer {
                 Ok(Stop)
             },
             x => Err(format!("Could not parse command {}.", x))
-        }
-    }
-
-    fn execute_command(&mut self, command: &Command) {
-        match *command {
-            Stop => (),
-            Add(src_a, src_b, dst) => self.memory[dst] = self.memory[src_a] + self.memory[src_b],
-            Multiply(src_a, src_b, dst) => self.memory[dst] = self.memory[src_a] * self.memory[src_b],
         }
     }
 }
