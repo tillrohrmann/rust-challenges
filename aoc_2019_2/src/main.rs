@@ -1,14 +1,25 @@
-use aoc_2019_2::{IntComputer, ComputationResult};
+use aoc_2019_2::ComputationResult::Success;
+use aoc_2019_2::{ComputationResult, IntComputer};
 use std::fs;
 use std::str::FromStr;
-use aoc_2019_2::ComputationResult::Success;
 
 fn main() {
-    solve_day_5();
+    solve_day_5_2();
+}
+
+fn test_input_equals_8() {
+    let input = vec![3,9,8,9,10,9,4,9,99,-1,8];
+    let mut computer = IntComputer::new(input);
+    assert_eq!(computer.compute(), ComputationResult::Success);
+}
+
+fn solve_day_5_2() {
+    let memory = read_memory_from_file("input_day_5_2.txt");
+    compute_result(memory);
 }
 
 fn solve_day_5() {
-    let memory = read_memory_from_file("input_day5.txt");
+    let memory = read_memory_from_file("input_day_5.txt");
     compute_result(memory);
 }
 
@@ -30,13 +41,14 @@ fn read_memory_from_file(path: &str) -> Vec<i32> {
 
 fn compute_result_with_modified_memory(memory: &Vec<i32>) {
     let derived_memory = create_modified_memory(&memory, 12, 2);
-    compute_result(derived_memory);
+    let result = compute_result(derived_memory);
+    println!("{:?}", result);
 }
 
-fn compute_result(memory: Vec<i32>) {
+fn compute_result(memory: Vec<i32>) -> i32 {
     let mut computer = IntComputer::new(memory);
     assert_eq!(computer.compute(), ComputationResult::Success);
-    println!("{:?}", computer.memory()[0]);
+    computer.memory()[0]
 }
 
 fn create_modified_memory(original_input: &Vec<i32>, noun: i32, verb: i32) -> Vec<i32> {

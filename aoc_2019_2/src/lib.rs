@@ -1,5 +1,5 @@
-use crate::ComputationResult::{Success, Failure};
-use crate::Command::{*};
+use crate::Command::*;
+use crate::ComputationResult::{Failure, Success};
 use std::io;
 
 pub struct IntComputer {
@@ -18,6 +18,10 @@ enum Command {
     Multiply(InputParameter, InputParameter, usize),
     Input(usize),
     Output(InputParameter),
+    JumpIfTrue(InputParameter, InputParameter),
+    JumpIfFalse(InputParameter, InputParameter),
+    LessThan(InputParameter, InputParameter, usize),
+    Equals(InputParameter, InputParameter, usize),
     Stop,
 }
 
@@ -51,10 +55,14 @@ impl CommandLike for Command {
             Add(_, _, _) => 4,
             Input(_) => 2,
             Output(_) => 2,
+            JumpIfTrue(_, _) => 3,
+            JumpIfFalse(_, _) => 3,
+            LessThan(_, _, _) => 4,
+            Equals(_, _, _) => 4,
         }
     }
 
-    fn execute(&self, memory: &mut Vec<i32>) {
+    fn execute(&self, memory: &mut Vec<i32>, instruction_pointer: &mut usize) {
         match *self {
             Stop => (),
             Add(parameter_a, parameter_b, dst) => {
@@ -62,32 +70,42 @@ impl CommandLike for Command {
                 let value_b = parameter_b.interpret(memory);
 
                 memory[dst] = value_a + value_b;
-            },
+            }
             Multiply(parameter_a, parameter_b, dst) => {
                 let value_a = parameter_a.interpret(memory);
                 let value_b = parameter_b.interpret(memory);
                 memory[dst] = value_a * value_b;
-            },
-            Input(dst) => {
-                loop {
-                    println!("Request user input:");
-                    let mut line = String::new();
-                    io::stdin().read_line(&mut line);
+            }
+            Input(dst) => loop {
+                println!("Request user input:");
+                let mut line = String::new();
+                io::stdin().read_line(&mut line);
 
-                    let parsed_result = line.trim().parse();
+                let parsed_result = line.trim().parse();
 
-                    if let Ok(value) = parsed_result {
-                        memory[dst] = value;
-                        break;
-                    } else {
-                        println!("Could not parse user input. Please type again.")
-                    }
+                if let Ok(value) = parsed_result {
+                    memory[dst] = value;
+                    break;
+                } else {
+                    println!("Could not parse user input. Please type again.")
                 }
             },
             Output(parameter) => {
                 let value = parameter.interpret(memory);
                 println!("Output value: {}", value);
             }
+            JumpIfFalse(condition, value) => {
+                Command::execute_jump(memory, instruction_pointer, condition, value, |value| {
+                    value == 0
+                }, self.command_length())
+            }
+            JumpIfTrue(condition, value) => {
+                Command::execute_jump(memory, instruction_pointer, condition, value, |value| {
+                    value != 0
+                }, self.command_length())
+            }
+            LessThan(a, b, dst) => Command::execute_comparison(memory, a, b, dst, |a, b| a < b),
+            Equals(a, b, dst) => Command::execute_comparison(memory, a, b, dst, |a, b| a == b),
         }
     }
 }
@@ -97,7 +115,7 @@ trait CommandLike {
 
     fn command_length(&self) -> usize;
 
-    fn execute(&self, memory: &mut Vec<i32>);
+    fn execute(&self, memory: &mut Vec<i32>, instruction_pointer: &mut usize);
 }
 
 impl IntComputer {
@@ -109,16 +127,19 @@ impl IntComputer {
         loop {
             let command_result = self.next_command();
 
-            let optional_result = command_result.map(|command| {
-                command.execute(&mut self.memory);
-                self.pointer += command.command_length();
+            let optional_result = command_result
+                .map(|command| {
+                    command.execute(&mut self.memory, &mut self.pointer);
 
-                if command.is_stop() {
-                    Some(Success)
-                } else {
-                    None
-                }
-            }).unwrap_or_else(|error| Some(Failure{ error }));
+                    self.pointer += command.command_length();
+
+                    if command.is_stop() {
+                        Some(Success)
+                    } else {
+                        None
+                    }
+                })
+                .unwrap_or_else(|error| Some(Failure { error }));
 
             if let Some(result) = optional_result {
                 return result;
@@ -139,27 +160,51 @@ impl IntComputer {
         match opcode {
             1 => {
                 let input_parameters = IntComputer::parse_input_parameters(parameters, modes, 2);
-                Ok(Add(input_parameters[0], input_parameters[1], parameters[2] as usize))
-            },
+                Ok(Add(
+                    input_parameters[0],
+                    input_parameters[1],
+                    parameters[2] as usize,
+                ))
+            }
             2 => {
                 let input_parameters = IntComputer::parse_input_parameters(parameters, modes, 2);
-                Ok(Multiply(input_parameters[0], input_parameters[1], parameters[2] as usize))
-            },
-            3 => {
-                Ok(Input(parameters[0] as usize))
-            },
+                Ok(Multiply(
+                    input_parameters[0],
+                    input_parameters[1],
+                    parameters[2] as usize,
+                ))
+            }
+            3 => Ok(Input(parameters[0] as usize)),
             4 => {
                 let input_parameters = IntComputer::parse_input_parameters(parameters, modes, 1);
                 Ok(Output(input_parameters[0]))
-            }
-            99 => {
-                Ok(Stop)
             },
-            x => Err(format!("Could not parse command {}.", x))
+            5 => {
+                let input_parameters = IntComputer::parse_input_parameters(parameters, modes, 2);
+                Ok(JumpIfTrue(input_parameters[0], input_parameters[1]))
+            },
+            6 => {
+                let input_parameters = IntComputer::parse_input_parameters(parameters, modes, 2);
+                Ok(JumpIfFalse(input_parameters[0], input_parameters[1]))
+            },
+            7 => {
+                let input_parameters = IntComputer::parse_input_parameters(parameters, modes, 2);
+                Ok(LessThan(input_parameters[0], input_parameters[1], parameters[2] as usize))
+            },
+            8 => {
+                let input_parameters = IntComputer::parse_input_parameters(parameters, modes, 2);
+                Ok(Equals(input_parameters[0], input_parameters[1], parameters[2] as usize))
+            }
+            99 => Ok(Stop),
+            x => Err(format!("Could not parse command {}.", x)),
         }
     }
 
-    fn parse_input_parameters(memory: &[i32], modes: i32, number_parameters: u32) -> Vec<InputParameter> {
+    fn parse_input_parameters(
+        memory: &[i32],
+        modes: i32,
+        number_parameters: u32,
+    ) -> Vec<InputParameter> {
         let mut result = Vec::new();
         let mut modes = modes;
 
@@ -218,5 +263,38 @@ mod tests {
         let mut computer = IntComputer::new(input);
         assert_eq!(computer.compute(), ComputationResult::Success);
         assert_eq!(computer.memory(), output);
+    }
+}
+
+impl Command {
+    fn execute_comparison(
+        memory: &mut Vec<i32>,
+        a: InputParameter,
+        b: InputParameter,
+        dst: usize,
+        comparison: fn(i32, i32) -> bool,
+    ) -> () {
+        let value_a = a.interpret(memory);
+        let value_b = b.interpret(memory);
+
+        let value = if comparison(value_a, value_b) { 1 } else { 0 };
+
+        memory[dst] = value;
+    }
+
+    fn execute_jump(
+        memory: &mut Vec<i32>,
+        instruction_pointer: &mut usize,
+        condition: InputParameter,
+        value: InputParameter,
+        jump_condition: fn(i32) -> bool,
+        command_length: usize,
+    ) -> () {
+        let condition_value = condition.interpret(memory);
+
+        if jump_condition(condition_value) {
+            let new_instruction_pointer_value = value.interpret(memory) as usize - command_length;
+            *instruction_pointer = new_instruction_pointer_value;
+        }
     }
 }
