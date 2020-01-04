@@ -1,10 +1,16 @@
+use std::fs;
+use std::io;
+use std::io::BufRead;
+
 use crate::Command::*;
 use crate::ComputationResult::{Failure, Success};
-use std::io;
+use std::str::FromStr;
 
-pub struct IntComputer {
+pub struct IntComputer<'a, I: io::BufRead, O: io::Write> {
     memory: Vec<i32>,
     pointer: usize,
+    input: I,
+    output: &'a mut O,
 }
 
 #[derive(PartialEq, Debug)]
@@ -62,7 +68,13 @@ impl CommandLike for Command {
         }
     }
 
-    fn execute(&self, memory: &mut Vec<i32>, instruction_pointer: &mut usize) {
+    fn execute<I: io::BufRead, O: io::Write>(
+        &self,
+        memory: &mut Vec<i32>,
+        instruction_pointer: &mut usize,
+        input: &mut I,
+        output: &mut O,
+    ) {
         match *self {
             Stop => (),
             Add(parameter_a, parameter_b, dst) => {
@@ -77,9 +89,9 @@ impl CommandLike for Command {
                 memory[dst] = value_a * value_b;
             }
             Input(dst) => loop {
-                println!("Request user input:");
+                writeln!(output, "Request user input:");
                 let mut line = String::new();
-                io::stdin().read_line(&mut line);
+                input.read_line(&mut line);
 
                 let parsed_result = line.trim().parse();
 
@@ -92,18 +104,24 @@ impl CommandLike for Command {
             },
             Output(parameter) => {
                 let value = parameter.interpret(memory);
-                println!("Output value: {}", value);
+                writeln!(output, "Output value: {}", value);
             }
-            JumpIfFalse(condition, value) => {
-                Command::execute_jump(memory, instruction_pointer, condition, value, |value| {
-                    value == 0
-                }, self.command_length())
-            }
-            JumpIfTrue(condition, value) => {
-                Command::execute_jump(memory, instruction_pointer, condition, value, |value| {
-                    value != 0
-                }, self.command_length())
-            }
+            JumpIfFalse(condition, value) => Command::execute_jump(
+                memory,
+                instruction_pointer,
+                condition,
+                value,
+                |value| value == 0,
+                self.command_length(),
+            ),
+            JumpIfTrue(condition, value) => Command::execute_jump(
+                memory,
+                instruction_pointer,
+                condition,
+                value,
+                |value| value != 0,
+                self.command_length(),
+            ),
             LessThan(a, b, dst) => Command::execute_comparison(memory, a, b, dst, |a, b| a < b),
             Equals(a, b, dst) => Command::execute_comparison(memory, a, b, dst, |a, b| a == b),
         }
@@ -115,12 +133,33 @@ trait CommandLike {
 
     fn command_length(&self) -> usize;
 
-    fn execute(&self, memory: &mut Vec<i32>, instruction_pointer: &mut usize);
+    fn execute<I: io::BufRead, O: io::Write>(
+        &self,
+        memory: &mut Vec<i32>,
+        instruction_pointer: &mut usize,
+        input: &mut I,
+        output: &mut O,
+    );
 }
 
-impl IntComputer {
-    pub fn new(memory: Vec<i32>) -> IntComputer {
-        IntComputer { memory, pointer: 0 }
+pub fn compute_memory_with_stdin_stdout(memory: Vec<i32>) -> (ComputationResult, Vec<i32>) {
+    let mut stdout = io::stdout();
+    let stdin = io::stdin();
+
+    let mut computer = IntComputer::new(memory, io::BufReader::new(stdin), &mut stdout);
+    let result = computer.compute();
+
+    (result, computer.memory)
+}
+
+impl<'a, I: io::BufRead, O: io::Write> IntComputer<'a, I, O> {
+    pub fn new(memory: Vec<i32>, input: I, output: &'a mut O) -> IntComputer<I, O> {
+        IntComputer {
+            memory,
+            pointer: 0,
+            input,
+            output,
+        }
     }
 
     pub fn compute(&mut self) -> ComputationResult {
@@ -129,7 +168,12 @@ impl IntComputer {
 
             let optional_result = command_result
                 .map(|command| {
-                    command.execute(&mut self.memory, &mut self.pointer);
+                    command.execute(
+                        &mut self.memory,
+                        &mut self.pointer,
+                        &mut self.input,
+                        &mut self.output,
+                    );
 
                     self.pointer += command.command_length();
 
@@ -159,7 +203,7 @@ impl IntComputer {
         let modes = opcode_with_modes / 100;
         match opcode {
             1 => {
-                let input_parameters = IntComputer::parse_input_parameters(parameters, modes, 2);
+                let input_parameters = parse_input_parameters(parameters, modes, 2);
                 Ok(Add(
                     input_parameters[0],
                     input_parameters[1],
@@ -167,7 +211,7 @@ impl IntComputer {
                 ))
             }
             2 => {
-                let input_parameters = IntComputer::parse_input_parameters(parameters, modes, 2);
+                let input_parameters = parse_input_parameters(parameters, modes, 2);
                 Ok(Multiply(
                     input_parameters[0],
                     input_parameters[1],
@@ -176,55 +220,63 @@ impl IntComputer {
             }
             3 => Ok(Input(parameters[0] as usize)),
             4 => {
-                let input_parameters = IntComputer::parse_input_parameters(parameters, modes, 1);
+                let input_parameters = parse_input_parameters(parameters, modes, 1);
                 Ok(Output(input_parameters[0]))
-            },
+            }
             5 => {
-                let input_parameters = IntComputer::parse_input_parameters(parameters, modes, 2);
+                let input_parameters = parse_input_parameters(parameters, modes, 2);
                 Ok(JumpIfTrue(input_parameters[0], input_parameters[1]))
-            },
+            }
             6 => {
-                let input_parameters = IntComputer::parse_input_parameters(parameters, modes, 2);
+                let input_parameters = parse_input_parameters(parameters, modes, 2);
                 Ok(JumpIfFalse(input_parameters[0], input_parameters[1]))
-            },
+            }
             7 => {
-                let input_parameters = IntComputer::parse_input_parameters(parameters, modes, 2);
-                Ok(LessThan(input_parameters[0], input_parameters[1], parameters[2] as usize))
-            },
+                let input_parameters = parse_input_parameters(parameters, modes, 2);
+                Ok(LessThan(
+                    input_parameters[0],
+                    input_parameters[1],
+                    parameters[2] as usize,
+                ))
+            }
             8 => {
-                let input_parameters = IntComputer::parse_input_parameters(parameters, modes, 2);
-                Ok(Equals(input_parameters[0], input_parameters[1], parameters[2] as usize))
+                let input_parameters = parse_input_parameters(parameters, modes, 2);
+                Ok(Equals(
+                    input_parameters[0],
+                    input_parameters[1],
+                    parameters[2] as usize,
+                ))
             }
             99 => Ok(Stop),
             x => Err(format!("Could not parse command {}.", x)),
         }
     }
+}
 
-    fn parse_input_parameters(
-        memory: &[i32],
-        modes: i32,
-        number_parameters: u32,
-    ) -> Vec<InputParameter> {
-        let mut result = Vec::new();
-        let mut modes = modes;
+fn parse_input_parameters(
+    memory: &[i32],
+    modes: i32,
+    number_parameters: u32,
+) -> Vec<InputParameter> {
+    let mut result = Vec::new();
+    let mut modes = modes;
 
-        for idx in 0 as usize..number_parameters as usize {
-            let mode = modes % 10;
+    for idx in 0 as usize..number_parameters as usize {
+        let mode = modes % 10;
 
-            let parameter = if mode == 0 {
-                InputParameter::Position(memory[idx] as usize)
-            } else if mode == 1 {
-                InputParameter::Value(memory[idx])
-            } else {
-                panic!("Unknown mode value: {}", mode);
-            };
+        let parameter = if mode == 0 {
+            InputParameter::Position(memory[idx] as usize)
+        } else if mode == 1 {
+            InputParameter::Value(memory[idx])
+        } else {
+            panic!("Unknown mode value: {}", mode);
+        };
 
-            result.push(parameter);
-            modes /= 10;
-        }
-
-        result
+        result.push(parameter);
+        modes /= 10;
     }
+
+    result
 }
 
 #[cfg(test)]
@@ -260,9 +312,9 @@ mod tests {
     }
 
     fn run_test(input: Vec<i32>, output: &Vec<i32>) {
-        let mut computer = IntComputer::new(input);
-        assert_eq!(computer.compute(), ComputationResult::Success);
-        assert_eq!(computer.memory(), output);
+        let (result, resulting_memory) = compute_memory_with_stdin_stdout(input);
+        assert_eq!(result, ComputationResult::Success);
+        assert_eq!(&resulting_memory, output);
     }
 }
 
@@ -297,4 +349,14 @@ impl Command {
             *instruction_pointer = new_instruction_pointer_value;
         }
     }
+}
+
+pub fn read_memory_from_file(path: &str) -> Vec<i32> {
+    let input = fs::read_to_string(path).unwrap();
+    let memory: Vec<i32> = input
+        .trim()
+        .split(',')
+        .map(|split| i32::from_str(split).unwrap())
+        .collect();
+    memory
 }
