@@ -32,19 +32,19 @@ fn solve_day_2() {
     find_verb_noun_for(&memory, 19690720);
 }
 
-fn compute_result_with_modified_memory(memory: &Vec<i32>) {
+fn compute_result_with_modified_memory(memory: &Vec<i64>) {
     let derived_memory = create_modified_memory(&memory, 12, 2);
     let result = compute_result(derived_memory);
     println!("{:?}", result);
 }
 
-fn compute_result(memory: Vec<i32>) -> i32 {
+fn compute_result(memory: Vec<i64>) -> i64 {
     let (result, resulting_memory) = compute_memory_with_stdin_stdout(memory);
     assert_eq!(result, ComputationResult::Success);
     resulting_memory[0]
 }
 
-fn create_modified_memory(original_input: &Vec<i32>, noun: i32, verb: i32) -> Vec<i32> {
+fn create_modified_memory(original_input: &Vec<i64>, noun: i64, verb: i64) -> Vec<i64> {
     let mut result = original_input.clone();
     result[1] = noun;
     result[2] = verb;
@@ -52,7 +52,7 @@ fn create_modified_memory(original_input: &Vec<i32>, noun: i32, verb: i32) -> Ve
     result
 }
 
-fn find_verb_noun_for(original_memory_input: &Vec<i32>, target_value: i32) {
+fn find_verb_noun_for(original_memory_input: &Vec<i64>, target_value: i64) {
     for noun in 0..=99 {
         for verb in 0..=99 {
             let modified_memory = create_modified_memory(original_memory_input, noun, verb);
