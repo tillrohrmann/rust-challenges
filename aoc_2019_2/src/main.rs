@@ -41,7 +41,7 @@ fn compute_result_with_modified_memory(memory: &Vec<i64>) {
 fn compute_result(memory: Vec<i64>) -> i64 {
     let (result, resulting_memory) = compute_memory_with_stdin_stdout(memory);
     assert_eq!(result, ComputationResult::Success);
-    resulting_memory[0]
+    resulting_memory.get(0)
 }
 
 fn create_modified_memory(original_input: &Vec<i64>, noun: i64, verb: i64) -> Vec<i64> {
@@ -57,7 +57,7 @@ fn find_verb_noun_for(original_memory_input: &Vec<i64>, target_value: i64) {
         for verb in 0..=99 {
             let modified_memory = create_modified_memory(original_memory_input, noun, verb);
             let (result, resulting_memory) = compute_memory_with_stdin_stdout(modified_memory);
-            if result == Success && resulting_memory[0] == target_value {
+            if result == Success && resulting_memory.get(0) == target_value {
                 println!("Noun: {}, verb: {}.", noun, verb);
                 return;
             }

@@ -4,14 +4,61 @@ use std::io::BufRead;
 
 use crate::Command::*;
 use crate::ComputationResult::{Failure, Success};
+use std::ops::Index;
 use std::str::FromStr;
 
 pub struct IntComputer<'a, I: io::BufRead, O: io::Write> {
-    memory: Vec<i64>,
-    pointer: usize,
+    memory: Memory,
+    pointer: isize,
     relative_base: usize,
     input: I,
     output: &'a mut O,
+}
+
+pub struct Memory {
+    memory: Vec<i64>,
+}
+
+impl Memory {
+    fn new(memory: Vec<i64>) -> Memory {
+        Memory { memory }
+    }
+
+    pub fn get(&self, idx: usize) -> i64 {
+        self.verify_index(idx);
+        self.memory.get(idx).map(|&v| v).unwrap_or(0)
+    }
+
+    fn put(&mut self, idx: usize, value: i64) {
+        self.verify_index(idx);
+
+        if idx >= self.memory.len() {
+            self.memory.resize(idx + 1, 0)
+        }
+
+        self.memory[idx] = value;
+    }
+
+    fn verify_index(&self, idx: usize) {
+        if idx < 0 {
+            panic!("Index {} cannot below than 0.", idx);
+        }
+    }
+
+    pub fn memory(&self) -> &Vec<i64> {
+        &self.memory
+    }
+}
+
+impl<Idx> std::ops::Index<Idx> for Memory
+where
+    Idx: std::slice::SliceIndex<[i64], Output = [i64]>,
+{
+    type Output = [i64];
+
+    fn index(&self, index: Idx) -> &Self::Output {
+        &self.memory[index]
+    }
 }
 
 #[derive(PartialEq, Debug)]
@@ -41,11 +88,11 @@ enum InputParameter {
 }
 
 impl InputParameter {
-    fn interpret(&self, memory: &mut Vec<i64>, base: usize) -> i64 {
+    fn interpret(&self, memory: &Memory, base: usize) -> i64 {
         match *self {
             InputParameter::Value(value) => value,
-            InputParameter::Position(pos) => memory[pos],
-            InputParameter::Relative(offset) => memory[(base as i64 + offset) as usize]
+            InputParameter::Position(pos) => memory.get(pos),
+            InputParameter::Relative(offset) => memory.get((base as i64 + offset) as usize),
         }
     }
 }
@@ -69,14 +116,14 @@ impl CommandLike for Command {
             JumpIfFalse(_, _) => 3,
             LessThan(_, _, _) => 4,
             Equals(_, _, _) => 4,
-            AdjustRelativeBase(_) => 2
+            AdjustRelativeBase(_) => 2,
         }
     }
 
     fn execute<I: io::BufRead, O: io::Write>(
         &self,
-        memory: &mut Vec<i64>,
-        instruction_pointer: &mut usize,
+        memory: &mut Memory,
+        instruction_pointer: &mut isize,
         relative_base: &mut usize,
         input: &mut I,
         output: &mut O,
@@ -87,12 +134,13 @@ impl CommandLike for Command {
                 let value_a = parameter_a.interpret(memory, *relative_base);
                 let value_b = parameter_b.interpret(memory, *relative_base);
 
-                memory[dst] = value_a + value_b;
+                memory.put(dst, value_a + value_b);
             }
             Multiply(parameter_a, parameter_b, dst) => {
                 let value_a = parameter_a.interpret(memory, *relative_base);
                 let value_b = parameter_b.interpret(memory, *relative_base);
-                memory[dst] = value_a * value_b;
+
+                memory.put(dst, value_a * value_b);
             }
             Input(dst) => loop {
                 writeln!(output, "Request user input:");
@@ -102,7 +150,7 @@ impl CommandLike for Command {
                 let parsed_result = line.trim().parse();
 
                 if let Ok(value) = parsed_result {
-                    memory[dst] = value;
+                    memory.put(dst, value);
                     break;
                 } else {
                     println!("Could not parse user input. Please type again.")
@@ -126,10 +174,25 @@ impl CommandLike for Command {
                 |value| value != 0,
                 self.command_length(),
             ),
-            LessThan(a, b, dst) => memory[dst] = Command::compare(a.interpret(memory, *relative_base), b.interpret(memory, *relative_base), |a, b| a < b),
-            Equals(a, b, dst) => memory[dst] = Command::compare(a.interpret(memory, *relative_base), b.interpret(memory, *relative_base), |a, b| a == b),
+            LessThan(a, b, dst) => memory.put(
+                dst,
+                Command::compare(
+                    a.interpret(memory, *relative_base),
+                    b.interpret(memory, *relative_base),
+                    |a, b| a < b,
+                ),
+            ),
+            Equals(a, b, dst) => memory.put(
+                dst,
+                Command::compare(
+                    a.interpret(memory, *relative_base),
+                    b.interpret(memory, *relative_base),
+                    |a, b| a == b,
+                ),
+            ),
             AdjustRelativeBase(offset) => {
-                *relative_base = (*relative_base as i64 + offset.interpret(memory, *relative_base)) as usize
+                *relative_base =
+                    (*relative_base as i64 + offset.interpret(memory, *relative_base)) as usize
             }
         }
     }
@@ -142,15 +205,15 @@ trait CommandLike {
 
     fn execute<I: io::BufRead, O: io::Write>(
         &self,
-        memory: &mut Vec<i64>,
-        instruction_pointer: &mut usize,
+        memory: &mut Memory,
+        instruction_pointer: &mut isize,
         relative_base: &mut usize,
         input: &mut I,
         output: &mut O,
     );
 }
 
-pub fn compute_memory_with_stdin_stdout(memory: Vec<i64>) -> (ComputationResult, Vec<i64>) {
+pub fn compute_memory_with_stdin_stdout(memory: Vec<i64>) -> (ComputationResult, Memory) {
     let mut stdout = io::stdout();
     let stdin = io::stdin();
 
@@ -163,7 +226,7 @@ pub fn compute_memory_with_stdin_stdout(memory: Vec<i64>) -> (ComputationResult,
 impl<'a, I: io::BufRead, O: io::Write> IntComputer<'a, I, O> {
     pub fn new(memory: Vec<i64>, input: I, output: &'a mut O) -> IntComputer<I, O> {
         IntComputer {
-            memory,
+            memory: Memory::new(memory),
             pointer: 0,
             relative_base: 0,
             input,
@@ -185,7 +248,7 @@ impl<'a, I: io::BufRead, O: io::Write> IntComputer<'a, I, O> {
                         &mut self.output,
                     );
 
-                    self.pointer += command.command_length();
+                    self.pointer += command.command_length() as isize;
 
                     if command.is_stop() {
                         Some(Success)
@@ -202,7 +265,7 @@ impl<'a, I: io::BufRead, O: io::Write> IntComputer<'a, I, O> {
     }
 
     pub fn memory(&self) -> &Vec<i64> {
-        &self.memory
+        &self.memory.memory
     }
 
     fn next_command(&mut self) -> Result<Command, String> {
@@ -283,7 +346,7 @@ fn parse_input_parameters(
         } else if mode == 1 {
             InputParameter::Value(memory[idx])
         } else if mode == 2 {
-          InputParameter::Relative(memory[idx])
+            InputParameter::Relative(memory[idx])
         } else {
             panic!("Unknown mode value: {}", mode);
         };
@@ -330,41 +393,56 @@ mod tests {
     fn run_test(input: Vec<i64>, output: &Vec<i64>) {
         let (result, resulting_memory) = compute_memory_with_stdin_stdout(input);
         assert_eq!(result, ComputationResult::Success);
-        assert_eq!(&resulting_memory, output);
+        assert_eq!(resulting_memory.memory()[0..output.len()], output[..]);
     }
 
     #[test]
     fn computes_quine() {
-        let input = vec![
-            109, 1, 204, -1, 1001, 100, 1, 100, 1008, 100, 16, 101, 1006, 101, 0, 99,
-        ];
-        let output = vec![
+        let memory = vec![
             109, 1, 204, -1, 1001, 100, 1, 100, 1008, 100, 16, 101, 1006, 101, 0, 99,
         ];
 
-        run_test(input, &output);
+        let input: Vec<u8> = vec![];
+        let mut output = vec![0; input.len()];
+        let mut computer = IntComputer::new(memory.clone(), &input[..], &mut output);
+        computer.compute();
+        let result: Vec<i64> = String::from_utf8(output)
+            .unwrap()
+            .split("\n")
+            .filter(|line| line.contains("Output value:"))
+            .flat_map(|line: &str| {
+                line.find(":").map(|idx| {
+                    line[idx+1..]
+                        .trim()
+                        .parse()
+                        .unwrap()
+                })
+            })
+            .collect();
+
+        assert_eq!(result, memory);
     }
 }
 
 impl Command {
-    fn compare(
-        a: i64,
-        b: i64,
-        comparison: fn(i64, i64) -> bool,
-    ) -> i64 {
-        if comparison(a, b) { 1 } else { 0 }
+    fn compare(a: i64, b: i64, comparison: fn(i64, i64) -> bool) -> i64 {
+        if comparison(a, b) {
+            1
+        } else {
+            0
+        }
     }
 
     fn execute_jump(
-        instruction_pointer: &mut usize,
+        instruction_pointer: &mut isize,
         condition: i64,
         value: i64,
         jump_condition: fn(i64) -> bool,
         command_length: usize,
     ) -> () {
         if jump_condition(condition) {
-            let new_instruction_pointer_value = value as usize - command_length;
-            *instruction_pointer = new_instruction_pointer_value;
+            let new_instruction_pointer_value = value - command_length as i64;
+            *instruction_pointer = new_instruction_pointer_value as isize;
         }
     }
 }
