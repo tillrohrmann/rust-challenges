@@ -68,14 +68,14 @@ pub enum ComputationResult {
 }
 
 enum Command {
-    Add(InputParameter, InputParameter, usize),
-    Multiply(InputParameter, InputParameter, usize),
-    Input(usize),
+    Add(InputParameter, InputParameter, OutputParameter),
+    Multiply(InputParameter, InputParameter, OutputParameter),
+    Input(OutputParameter),
     Output(InputParameter),
     JumpIfTrue(InputParameter, InputParameter),
     JumpIfFalse(InputParameter, InputParameter),
-    LessThan(InputParameter, InputParameter, usize),
-    Equals(InputParameter, InputParameter, usize),
+    LessThan(InputParameter, InputParameter, OutputParameter),
+    Equals(InputParameter, InputParameter, OutputParameter),
     AdjustRelativeBase(InputParameter),
     Stop,
 }
@@ -93,6 +93,21 @@ impl InputParameter {
             InputParameter::Value(value) => value,
             InputParameter::Position(pos) => memory.get(pos),
             InputParameter::Relative(offset) => memory.get((base as i64 + offset) as usize),
+        }
+    }
+}
+
+#[derive(Copy, Clone)]
+enum OutputParameter {
+    Position(usize),
+    Relative(i64),
+}
+
+impl OutputParameter {
+    fn absolute_position(&self, base: usize) -> usize {
+        match *self {
+            OutputParameter::Position(pos) => pos,
+            OutputParameter::Relative(offset) => (base as i64 + offset) as usize,
         }
     }
 }
@@ -134,13 +149,13 @@ impl CommandLike for Command {
                 let value_a = parameter_a.interpret(memory, *relative_base);
                 let value_b = parameter_b.interpret(memory, *relative_base);
 
-                memory.put(dst, value_a + value_b);
+                memory.put(dst.absolute_position(*relative_base), value_a + value_b);
             }
             Multiply(parameter_a, parameter_b, dst) => {
                 let value_a = parameter_a.interpret(memory, *relative_base);
                 let value_b = parameter_b.interpret(memory, *relative_base);
 
-                memory.put(dst, value_a * value_b);
+                memory.put(dst.absolute_position(*relative_base), value_a * value_b);
             }
             Input(dst) => loop {
                 writeln!(output, "Request user input:");
@@ -150,7 +165,7 @@ impl CommandLike for Command {
                 let parsed_result = line.trim().parse();
 
                 if let Ok(value) = parsed_result {
-                    memory.put(dst, value);
+                    memory.put(dst.absolute_position(*relative_base), value);
                     break;
                 } else {
                     println!("Could not parse user input. Please type again.")
@@ -175,7 +190,7 @@ impl CommandLike for Command {
                 self.command_length(),
             ),
             LessThan(a, b, dst) => memory.put(
-                dst,
+                dst.absolute_position(*relative_base),
                 Command::compare(
                     a.interpret(memory, *relative_base),
                     b.interpret(memory, *relative_base),
@@ -183,7 +198,7 @@ impl CommandLike for Command {
                 ),
             ),
             Equals(a, b, dst) => memory.put(
-                dst,
+                dst.absolute_position(*relative_base),
                 Command::compare(
                     a.interpret(memory, *relative_base),
                     b.interpret(memory, *relative_base),
@@ -280,7 +295,7 @@ impl<'a, I: io::BufRead, O: io::Write> IntComputer<'a, I, O> {
                 Ok(Add(
                     input_parameters[0],
                     input_parameters[1],
-                    parameters[2] as usize,
+                    parse_output_parameter(parameters[2], modes / 100),
                 ))
             }
             2 => {
@@ -288,10 +303,10 @@ impl<'a, I: io::BufRead, O: io::Write> IntComputer<'a, I, O> {
                 Ok(Multiply(
                     input_parameters[0],
                     input_parameters[1],
-                    parameters[2] as usize,
+                    parse_output_parameter(parameters[2], modes / 100),
                 ))
             }
-            3 => Ok(Input(parameters[0] as usize)),
+            3 => Ok(Input(parse_output_parameter(parameters[0], modes))),
             4 => {
                 let input_parameters = parse_input_parameters(parameters, modes, 1);
                 Ok(Output(input_parameters[0]))
@@ -309,7 +324,7 @@ impl<'a, I: io::BufRead, O: io::Write> IntComputer<'a, I, O> {
                 Ok(LessThan(
                     input_parameters[0],
                     input_parameters[1],
-                    parameters[2] as usize,
+                    parse_output_parameter(parameters[2], modes / 100),
                 ))
             }
             8 => {
@@ -317,7 +332,7 @@ impl<'a, I: io::BufRead, O: io::Write> IntComputer<'a, I, O> {
                 Ok(Equals(
                     input_parameters[0],
                     input_parameters[1],
-                    parameters[2] as usize,
+                    parse_output_parameter(parameters[2], modes / 100),
                 ))
             }
             9 => {
@@ -327,6 +342,18 @@ impl<'a, I: io::BufRead, O: io::Write> IntComputer<'a, I, O> {
             99 => Ok(Stop),
             x => Err(format!("Could not parse command {}.", x)),
         }
+    }
+}
+
+fn parse_output_parameter(value: i64, mode: i64) -> OutputParameter {
+    let mode = mode % 10;
+
+    if mode == 0 {
+        OutputParameter::Position(value as usize)
+    } else if mode == 2 {
+        OutputParameter::Relative(value)
+    } else {
+        panic!("Unsupported mode for output parameter {}.", mode);
     }
 }
 
@@ -411,12 +438,8 @@ mod tests {
             .split("\n")
             .filter(|line| line.contains("Output value:"))
             .flat_map(|line: &str| {
-                line.find(":").map(|idx| {
-                    line[idx+1..]
-                        .trim()
-                        .parse()
-                        .unwrap()
-                })
+                line.find(":")
+                    .map(|idx| line[idx + 1..].trim().parse().unwrap())
             })
             .collect();
 
