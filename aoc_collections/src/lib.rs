@@ -1,3 +1,5 @@
+#![feature(box_into_raw_non_null)]
+
 pub mod circular_linked_list;
 pub mod radix_tree;
 

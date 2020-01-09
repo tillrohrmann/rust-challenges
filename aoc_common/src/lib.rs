@@ -1,12 +1,9 @@
-#![feature(box_into_raw_non_null)]
-
 use std::io;
 use std::fs;
 use std::io::BufRead;
 use std::error;
 use std::fmt;
 
-pub mod collections;
 pub mod math;
 
 pub type GenericResult<T> = Result<T, Box<dyn error::Error>>;
