@@ -1,8 +1,8 @@
-use std::io;
-use std::fs;
-use std::io::BufRead;
 use std::error;
 use std::fmt;
+use std::fs;
+use std::io;
+use std::io::BufRead;
 
 pub mod math;
 
@@ -10,13 +10,13 @@ pub type GenericResult<T> = Result<T, Box<dyn error::Error>>;
 
 #[derive(Debug)]
 pub struct GenericError {
-    message: String
+    message: String,
 }
 
 impl GenericError {
     pub fn new(message: &str) -> GenericError {
         GenericError {
-            message: message.to_string()
+            message: message.to_string(),
         }
     }
 }
@@ -42,6 +42,9 @@ mod tests {
 
     #[test]
     fn test_read_raw_file_content() {
-        assert_eq!(read_raw_file_content("test_input.txt").unwrap(), vec!["foobar", "barfoo", "foo", "bar"]);
+        assert_eq!(
+            read_raw_file_content("test_input.txt").unwrap(),
+            vec!["foobar", "barfoo", "foo", "bar"]
+        );
     }
 }

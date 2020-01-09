@@ -15,9 +15,10 @@ fn test_push() {
 }
 
 fn assert_contains<T, I>(mut circular_list: CircularLinkedList<T>, mut expected: I)
-    where T : PartialEq + std::fmt::Debug,
-    I : Iterator<Item = T> {
-
+where
+    T: PartialEq + std::fmt::Debug,
+    I: Iterator<Item = T>,
+{
     while let Some(expected_value) = expected.next() {
         assert_eq!(circular_list.pop_front(), Some(expected_value));
     }
@@ -27,23 +28,32 @@ fn assert_contains<T, I>(mut circular_list: CircularLinkedList<T>, mut expected:
 
 #[test]
 fn test_from_iterator() {
-    let circular_list = vec![1, 2, 3].into_iter().collect::<CircularLinkedList<usize>>();
+    let circular_list = vec![1, 2, 3]
+        .into_iter()
+        .collect::<CircularLinkedList<usize>>();
 
     assert_contains(circular_list, vec![1, 2, 3].into_iter());
 }
 
 #[test]
 fn test_iterator() {
-    let circular_list = vec![1, 2, 3].into_iter().collect::<CircularLinkedList<usize>>();
+    let circular_list = vec![1, 2, 3]
+        .into_iter()
+        .collect::<CircularLinkedList<usize>>();
 
-    let vector_collection = circular_list.iter().map(|v| v.clone()).collect::<Vec<usize>>();
+    let vector_collection = circular_list
+        .iter()
+        .map(|v| v.clone())
+        .collect::<Vec<usize>>();
 
     assert_eq!(vector_collection, vec![1, 2, 3]);
 }
 
 #[test]
 fn test_cursor() {
-    let mut circular_list = vec![1, 2, 3].into_iter().collect::<CircularLinkedList<usize>>();
+    let mut circular_list = vec![1, 2, 3]
+        .into_iter()
+        .collect::<CircularLinkedList<usize>>();
 
     let mut cursor = circular_list.cursor_mut();
 
@@ -89,7 +99,9 @@ fn test_cursor_insert() {
 
 #[test]
 fn test_cursor_remove() {
-    let mut circular_list = vec![1, 2, 3].into_iter().collect::<CircularLinkedList<usize>>();
+    let mut circular_list = vec![1, 2, 3]
+        .into_iter()
+        .collect::<CircularLinkedList<usize>>();
 
     let mut cursor = circular_list.cursor_mut();
 

@@ -1,8 +1,8 @@
-use std::ops::{Add, Sub};
-use std::fmt::Display;
 use crate::fmt;
+use std::fmt::Display;
+use std::ops::{Add, Sub};
 
-#[derive(Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Point(pub isize, pub isize);
 
 impl Add for Point {
