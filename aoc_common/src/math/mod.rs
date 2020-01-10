@@ -1,9 +1,18 @@
-use crate::fmt;
 use std::fmt::Display;
 use std::ops::{Add, Sub};
 
+use crate::fmt;
+
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Point(pub isize, pub isize);
+
+impl Point {
+    pub fn length(&self) -> f64 {
+        let Point(x, y) = self;
+
+        ((x * x + y * y) as f64).sqrt()
+    }
+}
 
 impl Add for Point {
     type Output = Point;
