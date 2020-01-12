@@ -12,6 +12,12 @@ impl Point {
 
         ((x * x + y * y) as f64).sqrt()
     }
+
+    pub fn length_sqrd(&self) -> isize {
+        let Point(x, y) = self;
+
+        x * x + y * y
+    }
 }
 
 impl Add for Point {
