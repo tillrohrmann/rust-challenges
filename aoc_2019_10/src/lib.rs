@@ -3,6 +3,9 @@ use aoc_common::GenericResult;
 use std::cmp::Ordering;
 use std::collections::HashSet;
 use std::fs;
+use bigdecimal::BigDecimal;
+use bigdecimal::FromPrimitive;
+use std::ops::{Div, Mul};
 
 pub struct Map {
     asteroids: HashSet<Point>,
@@ -75,7 +78,7 @@ impl Map {
         }
     }
 
-    fn vaporize_asteroids(&self, base: Point) -> AsteroidIterator {
+    pub fn vaporize_asteroids(&self, base: Point) -> AsteroidIterator {
         let mut translated_asteroids: Vec<Point> = self
             .asteroids
             .iter()
@@ -89,43 +92,90 @@ impl Map {
     }
 
     fn compare_asteroids(base: Point, a: Point, b: Point) -> Ordering {
-        let (half_a, cos_angle_a, distance_a) = Map::calculate_asteroid_properties(a - base);
-        let (half_b, cos_angle_b, distance_b) = Map::calculate_asteroid_properties(b - base);
+        let (quarter_a, y_a, distance_sqrd_a) = Map::calculate_asteroid_properties(a - base);
+        let (quarter_b, y_b, distance_sqrd_b) = Map::calculate_asteroid_properties(b - base);
 
-        if half_a > half_b {
-            Ordering::Less
-        } else if half_a < half_b {
+        if quarter_a > quarter_b {
             Ordering::Greater
+        } else if quarter_a < quarter_b {
+            Ordering::Less
         } else {
-            let sign = Map::get_sign(half_a) as f64;
-            let cos_angle_a = cos_angle_a * sign;
-            let cos_angle_b = cos_angle_b * sign;
+            let sign = quarter_a.get_sign();
+            let y_a = y_a;
+            let y_b = y_b;
+            let cos_a_times_distance_sqrd_b = sign as isize * y_a * y_a * distance_sqrd_b;
+            let cos_b_times_distance_sqrd_a = sign as isize * y_b * y_b * distance_sqrd_a;
 
-            if cos_angle_a < cos_angle_b {
+            if cos_a_times_distance_sqrd_b < cos_b_times_distance_sqrd_a {
                 Ordering::Less
-            } else if cos_angle_a > cos_angle_b {
+            } else if cos_a_times_distance_sqrd_b > cos_b_times_distance_sqrd_a {
                 Ordering::Greater
             } else {
-                distance_a.partial_cmp(&distance_b).unwrap()
+                distance_sqrd_a.partial_cmp(&distance_sqrd_b).unwrap()
             }
         }
     }
 
-    fn calculate_asteroid_properties(asteroid: Point) -> (i32, f64, f64) {
+    fn calculate_asteroid_properties(asteroid: Point) -> (Quarter, isize, isize) {
         let Point(x, y) = asteroid;
-        let half = Map::get_sign(x as i32);
-        let distance = asteroid.length();
-        let cos_angle = y as f64 / distance;
+        let quarter = Quarter::from_point(asteroid);
+        let distance_sqrd = asteroid.length_sqrd();
 
-        (half, cos_angle, distance)
+        (quarter, y, distance_sqrd)
+    }
+}
+
+#[derive(Debug)]
+enum Quarter {
+    First,
+    Second,
+    Third,
+    Fourth,
+}
+
+impl Quarter {
+    fn from_point(point: Point) -> Quarter {
+        let Point(x, y) = point;
+
+        if x >= 0 && y < 0 {
+            Quarter::First
+        } else if x >= 0 && y >= 0 {
+            Quarter::Second
+        } else if x < 0 && y >= 0 {
+            Quarter::Third
+        } else {
+            Quarter::Fourth
+        }
     }
 
-    fn get_sign(input: i32) -> i32 {
-        if input >= 0 {
-            1
-        } else {
-            -1
+    fn get_sign(&self) -> i32 {
+        match self {
+            Quarter::First => -1,
+            Quarter::Second => 1,
+            Quarter::Third => -1,
+            Quarter::Fourth => 1,
         }
+    }
+
+    fn get_numeric_value(&self) -> i32 {
+        match self {
+            Quarter::First => 1,
+            Quarter::Second => 2,
+            Quarter::Third => 3,
+            Quarter::Fourth => 4,
+        }
+    }
+}
+
+impl PartialOrd for Quarter {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        self.get_numeric_value().partial_cmp(&other.get_numeric_value())
+    }
+}
+
+impl PartialEq for Quarter {
+    fn eq(&self, other: &Self) -> bool {
+        self.get_numeric_value().eq(&other.get_numeric_value())
     }
 }
 
@@ -353,8 +403,8 @@ mod tests {
 #####.##.###..####..
 ..######..##.#######
 ####.##.####...##..#
-.#####..#.#1####.###
-##...#.####X#####...
+.#####..#.######.###
+##...#.##########...
 #.##########.#######
 .####.#.###.###.#.##
 ....##.##.###..#####
@@ -364,15 +414,10 @@ mod tests {
 
         let map = Map::parse_map(example_five);
 
-        let mut asteroid_iterator = map.vaporize_asteroids(Point(11,13));
+        let base = Point(11, 13);
+        let mut asteroid_iterator = map.vaporize_asteroids(base);
 
-        let mut index = 0;
-        while let Some(p) = asteroid_iterator.next() {
-            index += 1;
-            println!("{}: {:?}", index, p);
-        }
-
-        let mut asteroid_iterator = map.vaporize_asteroids(Point(11,13));
+        let mut asteroid_iterator = map.vaporize_asteroids(base);
 
         assert_eq!(asteroid_iterator.next(), Some(Point(11, 12)));
         assert_eq!(asteroid_iterator.next(), Some(Point(12, 1)));
@@ -385,6 +430,13 @@ mod tests {
         assert_eq!(asteroid_iterator.next(), Some(Point(16, 9))); // 50th
         let mut asteroid_iterator= asteroid_iterator.skip(49);
         assert_eq!(asteroid_iterator.next(), Some(Point(10, 16))); // 100th
+        let mut asteroid_iterator = asteroid_iterator.skip(98);
+        assert_eq!(asteroid_iterator.next(), Some(Point(9, 6))); // 199th
+        assert_eq!(asteroid_iterator.next(), Some(Point(8, 2))); // 200th
+        assert_eq!(asteroid_iterator.next(), Some(Point(10, 9))); // 201st
+        let mut asteroid_iterator = asteroid_iterator.skip(97);
+        assert_eq!(asteroid_iterator.next(), Some(Point(11, 1)));
+        assert_eq!(asteroid_iterator.next(), None);
     }
 
     #[test]

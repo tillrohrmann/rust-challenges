@@ -8,3 +8,4 @@ edition = "2018"
 
 [dependencies]
 aoc_common = { path = "../aoc_common" }
+bigdecimal = "0.1.0"
