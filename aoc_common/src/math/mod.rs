@@ -1,5 +1,5 @@
 use std::fmt::Display;
-use std::ops::{Add, Sub};
+use std::ops::{Add, Mul, Sub};
 
 use crate::fmt;
 
@@ -45,5 +45,40 @@ impl Sub for Point {
 impl Display for Point {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.write_str(&format!("Point({},{})", self.0, self.1))
+    }
+}
+
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug, PartialOrd)]
+pub struct Point3d(pub isize, pub isize, pub isize);
+
+impl Add for Point3d {
+    type Output = Point3d;
+
+    fn add(self, rhs: Point3d) -> Self::Output {
+        let Point3d(x, y, z) = self;
+        let Point3d(r_x, r_y, r_z) = rhs;
+
+        Point3d(x + r_x, y + r_y, z + r_z)
+    }
+}
+
+impl Sub for Point3d {
+    type Output = Point3d;
+
+    fn sub(self, rhs: Point3d) -> Self::Output {
+        let Point3d(x, y, z) = self;
+        let Point3d(r_x, r_y, r_z) = rhs;
+
+        Point3d(x - r_x, y - r_y, z - r_z)
+    }
+}
+
+impl Mul<isize> for Point3d {
+    type Output = Point3d;
+
+    fn mul(self, rhs: isize) -> Self::Output {
+        let Point3d(x, y, z) = self;
+
+        Point3d(x * rhs, y * rhs, z * rhs)
     }
 }
