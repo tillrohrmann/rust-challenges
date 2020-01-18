@@ -10,7 +10,7 @@ use std::thread::JoinHandle;
 use std::time::Duration;
 use std::{io, thread};
 
-pub fn find_largest_permutation(memory: Vec<i32>, input: Vec<i32>) -> Result<i32, String> {
+pub fn find_largest_permutation(memory: Vec<i64>, input: Vec<i32>) -> Result<i32, String> {
     let memory = memory;
     let mut input: Vec<i32> = input;
     let mut results = Vec::new();
@@ -29,7 +29,7 @@ pub fn find_largest_permutation(memory: Vec<i32>, input: Vec<i32>) -> Result<i32
         .ok_or("No valid value found.".to_string())
 }
 
-fn compute_result_for_sequence(memory: &Vec<i32>, sequence: &Vec<i32>) -> Result<i32, String> {
+fn compute_result_for_sequence(memory: &Vec<i64>, sequence: &Vec<i32>) -> Result<i32, String> {
     let mut result = 0;
 
     for &first_input in sequence {
@@ -40,7 +40,7 @@ fn compute_result_for_sequence(memory: &Vec<i32>, sequence: &Vec<i32>) -> Result
 }
 
 pub fn find_largest_permutation_for_feedback_sequence(
-    memory: Vec<i32>,
+    memory: Vec<i64>,
     input: Vec<i32>,
 ) -> Result<i32, String> {
     let memory = memory;
@@ -62,7 +62,7 @@ pub fn find_largest_permutation_for_feedback_sequence(
 }
 
 fn compute_result_for_feedback_sequence(
-    memory: &Vec<i32>,
+    memory: &Vec<i64>,
     sequence: &Vec<i32>,
 ) -> Result<i32, String> {
     let (first_input_sender, first_input_receiver) = mpsc::channel();
@@ -100,7 +100,7 @@ fn compute_result_for_feedback_sequence(
         .ok_or(format!("Could not produce output."))
 }
 
-fn compute_result(memory: Vec<i32>, first_input: i32, second_input: i32) -> Result<i32, String> {
+fn compute_result(memory: Vec<i64>, first_input: i32, second_input: i32) -> Result<i32, String> {
     let input = format!("{}\n{}\n", first_input, second_input);
     let mut output: Vec<u8> = Vec::new();
     let mut computer = IntComputer::new(memory, input.as_bytes(), &mut output);
@@ -130,7 +130,7 @@ pub struct AsyncIntComputer {
 
 impl AsyncIntComputer {
     pub fn new<'a>(
-        memory: Vec<i32>,
+        memory: Vec<i64>,
         input: mpsc::Receiver<u8>,
         output: mpsc::Sender<u8>,
     ) -> AsyncIntComputer {

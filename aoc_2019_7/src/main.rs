@@ -26,7 +26,7 @@ fn solve_day_7_1() {
 fn solve_day_7_2() {
     let result = aoc_2019_7::find_largest_permutation_for_feedback_sequence(
         read_memory_from_file("input_day_7.txt"),
-        (5..=9).collect::<Vec<i32>>()
+        (5..=9).collect::<Vec<i32>>(),
     );
     println!("{}", result.unwrap());
 }
