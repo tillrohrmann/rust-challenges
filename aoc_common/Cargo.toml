@@ -5,3 +5,4 @@ authors = ["Till Rohrmann <trohrmann@apache.org>"]
 edition = "2018"
 
 [dependencies]
+num-traits = "0.2.11"
