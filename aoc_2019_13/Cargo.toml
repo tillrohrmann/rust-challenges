@@ -8,3 +8,4 @@ edition = "2018"
 
 [dependencies]
 aoc_2019_2 = { path = "../aoc_2019_2" }
+aoc_common = { path = "../aoc_common" }
