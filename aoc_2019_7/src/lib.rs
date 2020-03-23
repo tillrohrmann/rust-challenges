@@ -108,7 +108,7 @@ fn compute_result(memory: Vec<i64>, first_input: i32, second_input: i32) -> Resu
     let mut x: Vec<Result<i32, String>> = String::from_utf8(output)
         .unwrap()
         .split("\n")
-        .filter(|line| line.contains("Output value:"))
+        .filter(|line| line.contains(aoc_2019_2::OUTPUT_PREFIX))
         .flat_map(|line: &str| {
             line.find(":").map(|idx| {
                 line[idx + 1..]
