@@ -7,6 +7,9 @@ use crate::ComputationResult::{Failure, Success};
 use std::ops::Index;
 use std::str::FromStr;
 
+pub const OUTPUT_PREFIX: &str = "Output value: ";
+pub const INPUT_PREFIX: &str = "Request user input: ";
+
 pub struct IntComputer<'a, I: io::BufRead, O: io::Write> {
     memory: Memory,
     pointer: isize,
@@ -158,7 +161,7 @@ impl CommandLike for Command {
                 memory.put(dst.absolute_position(*relative_base), value_a * value_b);
             }
             Input(dst) => loop {
-                writeln!(output, "Request user input:");
+                writeln!(output, "{}", INPUT_PREFIX);
                 let mut line = String::new();
                 input.read_line(&mut line);
 
@@ -173,7 +176,7 @@ impl CommandLike for Command {
             },
             Output(parameter) => {
                 let value = parameter.interpret(memory, *relative_base);
-                writeln!(output, "Output value: {}", value);
+                writeln!(output, "{}{}", OUTPUT_PREFIX, value);
             }
             JumpIfFalse(condition, value) => Command::execute_jump(
                 instruction_pointer,
@@ -436,7 +439,7 @@ mod tests {
         let result: Vec<i64> = String::from_utf8(output)
             .unwrap()
             .split("\n")
-            .filter(|line| line.contains("Output value:"))
+            .filter(|line| line.contains(OUTPUT_PREFIX))
             .flat_map(|line: &str| {
                 line.find(":")
                     .map(|idx| line[idx + 1..].trim().parse().unwrap())
