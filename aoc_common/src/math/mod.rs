@@ -89,7 +89,9 @@ pub enum IntErrorKind {
     Overflow,
 }
 
-pub fn least_common_multiple<I: num_traits::PrimInt + std::hash::Hash>(numbers: &Vec<I>) -> Result<I, IntErrorKind> {
+pub fn least_common_multiple<I: num_traits::PrimInt + std::hash::Hash>(
+    numbers: &Vec<I>,
+) -> Result<I, IntErrorKind> {
     let mut least_common_multiple_factors: HashMap<I, usize> = HashMap::new();
 
     for number in numbers {
@@ -115,13 +117,16 @@ pub fn least_common_multiple<I: num_traits::PrimInt + std::hash::Hash>(numbers: 
 }
 
 pub fn factorize<I: num_traits::PrimInt + std::hash::Hash>(mut number: I) -> HashMap<I, usize> {
-    let mut result:HashMap<I, usize> = HashMap::new();
+    let mut result: HashMap<I, usize> = HashMap::new();
     let mut current_factor = I::one() + I::one();
 
     while number > I::one() {
         while number.rem(current_factor) == I::zero() {
             number = number / current_factor;
-            result.entry(current_factor).and_modify(|t| {*t += 1}).or_insert(1);
+            result
+                .entry(current_factor)
+                .and_modify(|t| *t += 1)
+                .or_insert(1);
         }
 
         current_factor = current_factor + I::one();
