@@ -1,6 +1,6 @@
+use aoc_2019_13::Pinball;
 use aoc_2019_2::IntComputer;
 use std::num::ParseIntError;
-use aoc_2019_13::Pinball;
 
 fn main() {
     solve_part_2();
