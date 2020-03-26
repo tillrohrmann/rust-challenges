@@ -1,7 +1,9 @@
+use core::ops;
 use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::io::ErrorKind;
 use std::num::ParseIntError;
+use std::ops::Mul;
 use std::str::FromStr;
 use std::{fmt, io};
 
@@ -14,8 +16,19 @@ pub struct QuantifiedChemical {
 }
 
 impl QuantifiedChemical {
-    fn new(amount: usize, chemical: Chemical) -> QuantifiedChemical {
+    pub fn new(amount: usize, chemical: Chemical) -> QuantifiedChemical {
         QuantifiedChemical { chemical, amount }
+    }
+}
+
+impl ops::Mul<usize> for &QuantifiedChemical {
+    type Output = QuantifiedChemical;
+
+    fn mul(self, rhs: usize) -> Self::Output {
+        QuantifiedChemical {
+            amount: self.amount * rhs,
+            chemical: self.chemical.clone(),
+        }
     }
 }
 
@@ -37,7 +50,7 @@ impl FromStr for QuantifiedChemical {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ChemicalReaction {
     inputs: Vec<QuantifiedChemical>,
     output: QuantifiedChemical,
@@ -104,29 +117,92 @@ fn parse_chemical_reactions(
     reactions.into_iter().map(|line| line.parse()).collect()
 }
 
+#[derive(Debug, Copy, Clone)]
 pub struct ReactionResult {
     produced: usize,
     required: usize,
 }
 
 impl ReactionResult {
+    fn empty() -> ReactionResult {
+        ReactionResult {
+            produced: 0,
+            required: 0,
+        }
+    }
+
     pub fn required_constituent(&self) -> usize {
         self.required
     }
 }
 
-pub struct Reactor {}
+pub struct Reactor {
+    chemical_reactions: HashMap<Chemical, ChemicalReaction>,
+}
 
 impl Reactor {
     pub fn build_reactor(chemical_reactions: &Vec<ChemicalReaction>) -> Reactor {
-        Reactor {}
+        let index = chemical_reactions
+            .iter()
+            .map(|reaction| (reaction.output.chemical.clone(), reaction.clone()))
+            .collect();
+        Reactor {
+            chemical_reactions: index,
+        }
     }
 
-    pub fn calculate_reaction(
-        &self,
-        target: QuantifiedChemical,
-    ) -> HashMap<Chemical, ReactionResult> {
-        HashMap::new()
+    pub fn calculate_reaction(&self, target: QuantifiedChemical) -> ReactorResult {
+        let mut reaction_results: HashMap<Chemical, ReactionResult> = HashMap::new();
+        let mut required_chemicals = vec![target];
+
+        while let Some(QuantifiedChemical { chemical, amount }) = required_chemicals.pop() {
+            let reaction_result = reaction_results
+                .entry(chemical.clone())
+                .or_insert(ReactionResult::empty());
+
+            if reaction_result.required + amount > reaction_result.produced {
+                let chemical_reaction = self.chemical_reactions.get(&chemical);
+
+                if let Some(chemical_reaction) = chemical_reaction {
+                    let reaction_amount = chemical_reaction.output.amount;
+
+                    let unused_produced_chemical =
+                        reaction_result.produced - reaction_result.required;
+
+                    let factor = ((amount - unused_produced_chemical) + (reaction_amount - 1))
+                        / reaction_amount;
+
+                    let produced_amount = factor * reaction_amount;
+
+                    reaction_result.produced += produced_amount;
+
+                    for input in &chemical_reaction.inputs {
+                        required_chemicals.push(input * factor);
+                    }
+                } else {
+                    // end of chemical reaction reached
+                }
+            }
+
+            reaction_result.required += amount;
+        }
+
+        ReactorResult::new(reaction_results)
+    }
+}
+
+#[derive(Debug)]
+pub struct ReactorResult {
+    reaction_results: HashMap<Chemical, ReactionResult>,
+}
+
+impl ReactorResult {
+    fn new(reaction_results: HashMap<Chemical, ReactionResult>) -> ReactorResult {
+        ReactorResult { reaction_results }
+    }
+
+    pub fn constituent(&self, chemical: Chemical) -> Option<ReactionResult> {
+        self.reaction_results.get(&chemical).map(|r| r.clone())
     }
 }
 
@@ -176,10 +252,10 @@ mod tests {
 
     fn run_test(chemical_reactions: &Vec<ChemicalReaction>, expected_ore_constituent: usize) {
         let reactor = Reactor::build_reactor(&chemical_reactions);
-        let reaction_result = reactor.calculate_reaction(QuantifiedChemical::new(1, "FUEL".into()));
+        let reactor_result = reactor.calculate_reaction(QuantifiedChemical::new(1, "FUEL".into()));
         assert_eq!(
-            reaction_result
-                .get("ORE".into())
+            reactor_result
+                .constituent("ORE".into())
                 .map(|reaction| reaction.required_constituent())
                 .unwrap_or(0),
             expected_ore_constituent
