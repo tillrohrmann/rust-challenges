@@ -206,6 +206,53 @@ impl ReactorResult {
     }
 }
 
+pub struct FuelCalculator {
+    reactor: Reactor,
+}
+
+impl FuelCalculator {
+    pub fn new(reactor: Reactor) -> FuelCalculator {
+        FuelCalculator { reactor }
+    }
+
+    pub fn calculate_max_fuel(&self, ore: usize) -> usize {
+        let mut fuel = 1;
+        let mut lower_bound = None;
+        let mut upper_bound = None;
+
+        loop {
+            if let (Some(lower), Some(upper)) = (lower_bound, upper_bound) {
+                if upper - lower == 1 {
+                    break;
+                }
+            }
+
+            let reactor_result = self
+                .reactor
+                .calculate_reaction(QuantifiedChemical::new(fuel, "FUEL".into()));
+            let required_ore = reactor_result
+                .constituent("ORE".into())
+                .map(|c| c.required_constituent())
+                .unwrap_or(0);
+
+            if required_ore <= ore {
+                lower_bound = Some(fuel);
+            } else {
+                upper_bound = Some(fuel);
+            }
+
+            fuel = match (lower_bound, upper_bound) {
+                (Some(lower), Some(upper)) => lower + (upper - lower) / 2,
+                (None, Some(upper)) => upper / 2,
+                (Some(lower), None) => lower * 2,
+                _ => panic!("Unexpected bounds")
+            }
+        }
+
+        lower_bound.unwrap_or(0)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -248,6 +295,39 @@ mod tests {
         let expected_ore_constituent = 2210736;
 
         run_test(&chemical_reactions, expected_ore_constituent);
+    }
+
+    #[test]
+    fn third_max_fuel_creation() {
+        let chemical_reactions = create_third_chemical_reactions();
+        let expected_fuel = 82892753;
+
+        run_max_fuel_test(&chemical_reactions, expected_fuel);
+    }
+
+    #[test]
+    fn fourth_max_fuel_creation() {
+        let chemical_reactions = create_fourth_chemical_reactions();
+        let expected_fuel = 5586022;
+
+        run_max_fuel_test(&chemical_reactions, expected_fuel);
+    }
+
+    #[test]
+    fn fifth_max_fuel_creation() {
+        let chemical_reactions = create_fifth_chemical_reactions();
+        let expected_fuel = 460664;
+
+        run_max_fuel_test(&chemical_reactions, expected_fuel);
+    }
+
+    fn run_max_fuel_test(chemical_reactions: &Vec<ChemicalReaction>, expected_fuel: usize) {
+        let reactor = Reactor::build_reactor(chemical_reactions);
+        let fuel_calculator = FuelCalculator::new(reactor);
+
+        let max_fuel = fuel_calculator.calculate_max_fuel(1_000_000_000_000);
+
+        assert_eq!(expected_fuel, max_fuel);
     }
 
     fn run_test(chemical_reactions: &Vec<ChemicalReaction>, expected_ore_constituent: usize) {
