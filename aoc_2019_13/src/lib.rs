@@ -218,10 +218,10 @@ enum Joystick {
     NEUTRAL,
 }
 
-struct StdoutOutputReader {}
+pub struct StdoutOutputReader {}
 
 impl StdoutOutputReader {
-    fn new() -> StdoutOutputReader {
+    pub fn new() -> StdoutOutputReader {
         StdoutOutputReader {}
     }
 }
@@ -242,7 +242,7 @@ impl InputWriter for StdoutOutputReader {
     }
 }
 
-trait OutputReader {
+pub trait OutputReader {
     fn read(&mut self, output_value: &str) -> Result<(), Error>;
 
     fn finalize_input_sequence(&self);
@@ -252,13 +252,13 @@ trait InputWriter {
     fn request_input(&self) -> Result<(), Error>;
 }
 
-struct IntComputerOutputReader {
+pub struct IntComputerOutputReader {
     buffer: Vec<u8>,
     output_reader: Box<dyn OutputReader>,
 }
 
 impl IntComputerOutputReader {
-    fn new(output_reader: Box<dyn OutputReader>) -> IntComputerOutputReader {
+    pub fn new(output_reader: Box<dyn OutputReader>) -> IntComputerOutputReader {
         IntComputerOutputReader {
             buffer: Vec::with_capacity(1024),
             output_reader,
@@ -318,7 +318,8 @@ impl JoystickController {
             Joystick::NEUTRAL => "0\n",
             Joystick::LEFT => "-1\n",
             Joystick::RIGHT => "1\n",
-        }.into()
+        }
+        .into()
     }
 }
 
