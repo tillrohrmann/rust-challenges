@@ -215,6 +215,9 @@ impl DroidController {
             if let Some(oxygen) = oxygen {
                 let command_seq = self.find_path_to(Point(0, 0), oxygen).unwrap();
                 println!("Shortest path to oxygen leak: {}", command_seq.len());
+
+                let longest_path_to_any = self.find_longest_path_to_any(oxygen);
+                println!("Time to fill the area: {}", longest_path_to_any);
             } else {
                 println!("Could not find path to oxygen.");
             }
@@ -248,6 +251,30 @@ impl DroidController {
         }
 
         None
+    }
+
+    fn find_longest_path_to_any(&self, src: Point) -> usize {
+        let mut candidates = VecDeque::from(vec![(src, 0)]);
+        let mut visited_fields = HashSet::new();
+        visited_fields.insert(src);
+        let mut max_path_length = 0;
+
+        while let Some((next, path_length)) = candidates.pop_front() {
+            if path_length > max_path_length {
+                max_path_length = path_length;
+            }
+            for neighbour in DroidController::neighbouring_fields(next).into_iter() {
+                if !visited_fields.contains(&neighbour)
+                    && self.droid_map.get(neighbour) != DroidMapElement::Wall
+                {
+                    visited_fields.insert(neighbour);
+
+                    candidates.push_back((neighbour, path_length + 1));
+                }
+            }
+        }
+
+        max_path_length
     }
 
     fn manual_direction() -> DroidDirection {
