@@ -75,6 +75,37 @@ pub fn split_string_into_digits(content: String) -> Result<Vec<isize>, String> {
         .collect()
 }
 
+pub struct PartTwoSolver {
+    input: Vec<isize>,
+}
+
+impl PartTwoSolver {
+    pub fn new(input: &Vec<isize>, repetitions: usize) -> PartTwoSolver {
+        let length = input.len();
+        let mut repeated_input = Vec::with_capacity(length * repetitions);
+
+        for _ in 0..repetitions {
+            repeated_input.extend_from_slice(&input[..])
+        }
+
+        PartTwoSolver {
+            input: repeated_input,
+        }
+    }
+
+    pub fn calculate(&self, num_phases: usize) -> Vec<isize> {
+        let fft = FFT::new(&self.input);
+        let output = fft.calculate(num_phases);
+        let start = self
+            .input
+            .iter()
+            .take(7)
+            .fold(0, |acc, &value| acc * 10 + value) as usize;
+
+        output[start..(start + 8)].to_vec()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -126,6 +157,30 @@ mod tests {
         run_fft_test(input, expected_output);
     }
 
+    #[test]
+    fn part_2_example_one() {
+        let input = "03036732577212944063491565474664";
+        let expected_output = "84462026";
+
+        run_part_2_fft_test(input, expected_output);
+    }
+
+    #[test]
+    fn part_2_example_two() {
+        let input = "02935109699940807407585447034323";
+        let expected_output = "78725270";
+
+        run_part_2_fft_test(input, expected_output);
+    }
+
+    #[test]
+    fn part_2_example_three() {
+        let input = "03081770884921959731165446850517";
+        let expected_output = "53553731";
+
+        run_part_2_fft_test(input, expected_output);
+    }
+
     fn run_fft_test(input: &str, expected_output: &str) {
         let input = split_string_into_digits(input.into()).unwrap();
         let fft = FFT::new(&input);
@@ -134,9 +189,20 @@ mod tests {
             output
                 .iter()
                 .take(8)
-                .map(|&d| {
-                   d.to_string()
-                })
+                .map(|&d| { d.to_string() })
+                .collect::<String>(),
+            expected_output
+        );
+    }
+
+    fn run_part_2_fft_test(input: &str, expected_output: &str) {
+        let input = split_string_into_digits(input.into()).unwrap();
+        let solver = PartTwoSolver::new(&input, 10000);
+        assert_eq!(
+            solver
+                .calculate(100)
+                .iter()
+                .map(|&d| d.to_string())
                 .collect::<String>(),
             expected_output
         );
