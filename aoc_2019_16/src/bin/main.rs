@@ -5,13 +5,12 @@ fn main() {
 }
 
 fn solve_part_2() {
-    let content = "03036732577212944063491565474664".into();
+    let content = fs::read_to_string("input.txt").unwrap();
     let digits = aoc_2019_16::split_string_into_digits(content).unwrap();
-    let fft = aoc_2019_16::FFT::new(&digits);
-    let output = fft.calculate(100);
-    let output: String = output.iter().map(|x| x.to_string()).collect();
+    let solver = aoc_2019_16::PartTwoSolver::new(&digits, 10000);
+    let result = solver.calculate(100);
 
-    println!("{}", output)
+    println!("{:?}", result);
 }
 
 fn solve_part_1() {

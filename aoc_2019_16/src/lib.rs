@@ -1,42 +1,21 @@
+type Element = i32;
+
 pub struct FFT<'a> {
-    input: &'a Vec<isize>,
-    frequencies: Vec<Vec<isize>>,
+    input: &'a Vec<Element>,
 }
 
 impl<'a> FFT<'a> {
-    const BASE_FREQUENCY: [isize; 4] = [0, 1, 0, -1];
+    const BASE_FREQUENCY: [Element; 4] = [0, 1, 0, -1];
 
-    pub fn new(input: &'a Vec<isize>) -> FFT {
-        let frequencies = FFT::calculate_frequencies(input.len());
-
-        FFT { input, frequencies }
+    pub fn new(input: &'a Vec<Element>) -> FFT {
+        FFT { input }
     }
 
-    fn calculate_frequencies(number_frequencies: usize) -> Vec<Vec<isize>> {
-        (0..number_frequencies)
-            .map(|frequency| FFT::calculate_frequency(frequency, number_frequencies))
-            .collect()
-    }
-
-    fn calculate_frequency(frequency: usize, length: usize) -> Vec<isize> {
-        (0..length)
-            .map(|idx| FFT::calculate_frequency_entry(idx, frequency))
-            .collect()
-    }
-
-    fn calculate_frequency_entry(idx: usize, frequency: usize) -> isize {
-        let period = FFT::BASE_FREQUENCY.len() * (frequency + 1);
-        let period_idx = (idx + 1) % period;
-        let base_period_idx = period_idx / (frequency + 1);
-
-        FFT::BASE_FREQUENCY[base_period_idx]
-    }
-
-    pub fn calculate(&self, num_phases: usize) -> Vec<isize> {
+    pub fn calculate(&self, num_phases: usize) -> Vec<Element> {
         let length = self.input.len();
         let mut result = self.input.clone();
 
-        for _ in 0..num_phases {
+        for i in 0..num_phases {
             let new_result = (0..length)
                 .map(|idx| self.calculate_entry(&result, idx))
                 .collect();
@@ -47,41 +26,69 @@ impl<'a> FFT<'a> {
         result
     }
 
-    fn calculate_entry(&self, input: &Vec<isize>, idx: usize) -> isize {
-        let result: isize = input
-            .iter()
-            .zip(self.get_frequency(idx))
-            .map(|(a, b)| a * b)
-            .sum();
+    fn calculate_entry(&self, input: &Vec<Element>, idx: usize) -> Element {
+        let mut result = 0;
 
-        isize::abs(result % 10)
+        for (n, x) in input.iter().enumerate() {
+            result += FFT::twiddle(n, idx) * x;
+        }
+
+        Element::abs(result % 10)
     }
 
-    fn get_frequency(&self, idx: usize) -> &Vec<isize> {
-        self.frequencies.get(idx).unwrap()
+    fn twiddle(n: usize, k: usize) -> Element {
+        let remainder = (n + 1) / (k + 1) % 4;
+
+        match remainder {
+            0 | 2 => 0,
+            1 => 1,
+            3 => -1,
+            _ => panic!("Illegal remainder")
+        }
+    }
+
+    pub fn calculate_fast(&self, num_phases: usize) -> Vec<Element> {
+        let length = self.input.len();
+        let mut result = vec![0; length];
+        let half = length / 2;
+
+        let (_, right) = result.split_at_mut(half);
+        right.copy_from_slice(&self.input[half..]);
+
+        for _ in 0..num_phases {
+            let mut sum = 0;
+
+            for k in (half..length).rev() {
+                sum = (sum + result[k]) % 10;
+                result[k] = sum;
+            }
+        }
+
+        result
     }
 }
 
-pub fn split_string_into_digits(content: String) -> Result<Vec<isize>, String> {
+pub fn split_string_into_digits(content: String) -> Result<Vec<Element>, String> {
     const RADIX: u32 = 10;
     content
         .trim()
         .chars()
         .map(|chr| {
             chr.to_digit(RADIX)
-                .map(|i| i as isize)
+                .map(|i| i as Element)
                 .ok_or(format!("Could not parse char {} as digit.", chr))
         })
         .collect()
 }
 
 pub struct PartTwoSolver {
-    input: Vec<isize>,
+    input: Vec<Element>,
 }
 
 impl PartTwoSolver {
-    pub fn new(input: &Vec<isize>, repetitions: usize) -> PartTwoSolver {
+    pub fn new(input: &Vec<Element>, repetitions: usize) -> PartTwoSolver {
         let length = input.len();
+
         let mut repeated_input = Vec::with_capacity(length * repetitions);
 
         for _ in 0..repetitions {
@@ -93,9 +100,9 @@ impl PartTwoSolver {
         }
     }
 
-    pub fn calculate(&self, num_phases: usize) -> Vec<isize> {
+    pub fn calculate(&self, num_phases: usize) -> Vec<Element> {
         let fft = FFT::new(&self.input);
-        let output = fft.calculate(num_phases);
+        let output = fft.calculate_fast(num_phases);
         let start = self
             .input
             .iter()
@@ -109,27 +116,6 @@ impl PartTwoSolver {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn frequency_calculation_one() {
-        let frequency = FFT::calculate_frequency(0, 8);
-
-        assert_eq!(frequency, vec![1, 0, -1, 0, 1, 0, -1, 0]);
-    }
-
-    #[test]
-    fn frequency_calculation_two() {
-        let frequency = FFT::calculate_frequency(1, 8);
-
-        assert_eq!(frequency, vec![0, 1, 1, 0, 0, -1, -1, 0]);
-    }
-
-    #[test]
-    fn frequency_calculation_three() {
-        let frequency = FFT::calculate_frequency(2, 8);
-
-        assert_eq!(frequency, vec![0, 0, 1, 1, 1, 0, 0, 0]);
-    }
 
     #[test]
     fn modulo_negative() {
