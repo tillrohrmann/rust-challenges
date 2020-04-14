@@ -7,6 +7,7 @@ use crate::MapElement::{Wall, Space, Robot};
 use crate::RawElement::{Other, Newline};
 use core::fmt;
 use std::fmt::Formatter;
+use aoc_common::math::Point;
 
 pub struct Scaffolding {
     program: Vec<i64>,
@@ -43,6 +44,7 @@ impl Scaffolding {
 pub struct ScaffoldingMap {
     map: Vec<MapElement>,
     width: usize,
+    offset: Point,
 }
 
 impl ScaffoldingMap {
@@ -50,7 +52,22 @@ impl ScaffoldingMap {
         ScaffoldingMap {
             map: elements,
             width,
+            offset: Point(0, 0),
         }
+    }
+
+    pub fn at(&self, point: Point) -> Option<MapElement> {
+        let Point(x, y) = point - self.offset;
+
+        if x < 0 || y < 0 {
+            None
+        } else {
+            self.get(x as usize, y as usize)
+        }
+    }
+
+    pub fn get(&self, x: usize, y: usize) -> Option<MapElement> {
+        self.map.get(x + y * self.width).cloned()
     }
 }
 
@@ -106,7 +123,7 @@ impl TryFrom<i64> for RawElement {
     }
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Copy, Clone)]
 pub enum MapElement {
     Wall,
     Space,
