@@ -207,7 +207,7 @@ impl OutputReader for PinballGameOutputReader {
         Ok(())
     }
 
-    fn finalize_input_sequence(&self) {
+    fn finalize_input_sequence(&mut self) {
         self.game.borrow_mut().finalize_input_sequence();
     }
 }
@@ -232,7 +232,7 @@ impl OutputReader for StdoutOutputReader {
         Ok(())
     }
 
-    fn finalize_input_sequence(&self) {}
+    fn finalize_input_sequence(&mut self) {}
 }
 
 impl InputWriter for StdoutOutputReader {
@@ -245,7 +245,7 @@ impl InputWriter for StdoutOutputReader {
 pub trait OutputReader {
     fn read(&mut self, output_value: &str) -> Result<(), Error>;
 
-    fn finalize_input_sequence(&self);
+    fn finalize_input_sequence(&mut self);
 }
 
 trait InputWriter {
