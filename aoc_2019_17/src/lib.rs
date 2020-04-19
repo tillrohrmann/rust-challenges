@@ -1,13 +1,16 @@
+use crate::MapElement::{Robot, Space, Wall};
+use crate::RawElement::{Newline, Other};
+use aoc_common::math::Point;
+use core::fmt;
 use std::cell::RefCell;
+use std::collections::HashSet;
 use std::convert::{TryFrom, TryInto};
+use std::fmt::Formatter;
 use std::io;
 use std::io::Error;
+use std::iter::Enumerate;
 use std::rc::Rc;
-use crate::MapElement::{Wall, Space, Robot};
-use crate::RawElement::{Other, Newline};
-use core::fmt;
-use std::fmt::Formatter;
-use aoc_common::math::Point;
+use std::slice::Iter;
 
 pub struct Scaffolding {
     program: Vec<i64>,
@@ -69,6 +72,64 @@ impl ScaffoldingMap {
     pub fn get(&self, x: usize, y: usize) -> Option<MapElement> {
         self.map.get(x + y * self.width).cloned()
     }
+
+    pub fn neighbours(&self, point: Point) -> Vec<MapElementItem> {
+        let east = point + Point(1, 0);
+        let west = point + Point(-1, 0);
+        let south = point + Point(0, 1);
+        let north = point + Point(0, -1);
+        vec![east, west, south, north]
+            .into_iter()
+            .map(|point| self.at(point).map(|v| MapElementItem::new(point, v)))
+            .flatten()
+            .collect()
+    }
+
+    pub fn elements(&self) -> ElementIterator {
+        ElementIterator::new(self)
+    }
+}
+
+pub struct ElementIterator<'a> {
+    element_iterator: Enumerate<Iter<'a, MapElement>>,
+    width: usize,
+    offset: Point,
+}
+
+impl<'a> ElementIterator<'a> {
+    pub fn new(scaffolding_map: &'a ScaffoldingMap) -> ElementIterator {
+        let element_iterator = scaffolding_map.map.iter().enumerate();
+
+        ElementIterator {
+            element_iterator,
+            width: scaffolding_map.width,
+            offset: scaffolding_map.offset,
+        }
+    }
+}
+
+impl<'a> Iterator for ElementIterator<'a> {
+    type Item = MapElementItem;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.element_iterator.next().map(|(idx, &element)| {
+            let x = idx % self.width;
+            let y = idx / self.width;
+            MapElementItem::new(Point(x as isize, y as isize) + self.offset, element)
+        })
+    }
+}
+
+#[derive(Debug)]
+pub struct MapElementItem {
+    point: Point,
+    map_element: MapElement,
+}
+
+impl MapElementItem {
+    pub fn new(point: Point, map_element: MapElement) -> MapElementItem {
+        MapElementItem { point, map_element }
+    }
 }
 
 impl TryFrom<&Vec<i64>> for ScaffoldingMap {
@@ -83,12 +144,13 @@ impl TryFrom<&Vec<i64>> for ScaffoldingMap {
         let first_newline = raw_elements.iter().position(|r| r.eq(&Newline));
 
         let width = first_newline.unwrap_or(raw_elements.len());
-        let elements: Vec<MapElement> = raw_elements.into_iter().filter_map(|element| {
-            match element {
+        let elements: Vec<MapElement> = raw_elements
+            .into_iter()
+            .filter_map(|element| match element {
                 Newline => None,
                 Other(map_element) => Some(map_element),
-            }
-        }).collect();
+            })
+            .collect();
 
         Ok(ScaffoldingMap::new(elements, width))
     }
@@ -96,10 +158,13 @@ impl TryFrom<&Vec<i64>> for ScaffoldingMap {
 
 impl fmt::Display for ScaffoldingMap {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        self.map.chunks(self.width).map(|line| {
-            let str_line: String = line.iter().map(|e| e.to_string()).collect();
-            writeln!(f, "{}", str_line)
-        }).collect()
+        self.map
+            .chunks(self.width)
+            .map(|line| {
+                let str_line: String = line.iter().map(|e| e.to_string()).collect();
+                writeln!(f, "{}", str_line)
+            })
+            .collect()
     }
 }
 
@@ -123,11 +188,12 @@ impl TryFrom<i64> for RawElement {
     }
 }
 
-#[derive(PartialEq, Copy, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum MapElement {
     Wall,
     Space,
     Robot,
+    Intersection,
 }
 
 impl ToString for MapElement {
@@ -136,7 +202,9 @@ impl ToString for MapElement {
             Wall => "#",
             Space => ".",
             Robot => "R",
-        }.into()
+            Intersection => "O",
+        }
+        .into()
     }
 }
 
@@ -148,7 +216,7 @@ impl TryFrom<i64> for MapElement {
             35 => Ok(Wall),
             46 => Ok(Space),
             94 => Ok(Robot),
-            x => Err(format!("Cannot parse MapElement from {}.", x))
+            x => Err(format!("Cannot parse MapElement from {}.", x)),
         }
     }
 }
@@ -195,8 +263,35 @@ impl aoc_2019_13::OutputReader for IntegerReader {
     fn finalize_input_sequence(&self) {}
 }
 
+pub fn find_intersections(input_map: &ScaffoldingMap) -> Vec<Point> {
+    let intersections: Vec<Point> = input_map
+        .elements()
+        .into_iter()
+        .filter_map(|item| {
+            if is_accessible(item.map_element) {
+                Some(item.point)
+            } else {
+                None
+            }
+        })
+        .filter(|&p| {
+            input_map
+                .neighbours(p)
+                .iter()
+                .filter(|&i| is_accessible(i.map_element))
+                .count()
+                > 2
+        })
+        .collect();
+
+    intersections
+}
+
+fn is_accessible(map_element: MapElement) -> bool {
+    map_element != MapElement::Space
+}
+
 #[cfg(test)]
 mod tests {
-
     use super::*;
 }
