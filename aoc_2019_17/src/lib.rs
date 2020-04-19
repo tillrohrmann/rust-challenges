@@ -331,8 +331,9 @@ impl VacuumCleaner {
     }
 
     pub fn execute(&mut self) {
+        let vacuum_cleaner_controller = Rc::new(RefCell::new(VacuumCleanerController::new()));
         let mut output =
-            aoc_2019_13::IntComputerOutputReader::new(Box::new(VacuumCleanerDisplay::new()));
+            aoc_2019_13::IntComputerOutputReader::new(Box::new(VacuumCleanerDisplay::new(Rc::clone(&vacuum_cleaner_controller))));
 
         let mut computer = aoc_2019_2::IntComputer::new(
             self.program.clone(),
@@ -344,14 +345,25 @@ impl VacuumCleaner {
     }
 }
 
+struct VacuumCleanerController {
+}
+
+impl VacuumCleanerController {
+    fn new() -> Self {
+        Self{}
+    }
+}
+
 struct VacuumCleanerDisplay {
-    reader: IntegerReader,
+    collector: Option<Vec<i64>>,
+    cleaner: Rc<RefCell<VacuumCleanerController>>,
 }
 
 impl VacuumCleanerDisplay {
-    fn new() -> Self {
+    fn new(cleaner: Rc<RefCell<VacuumCleanerController>>) -> Self {
         Self {
-            reader: IntegerReader::new(Rc::new(RefCell::new(IntegerCollector::new()))),
+            collector: Some(vec![]),
+            cleaner,
         }
     }
 }
@@ -360,49 +372,54 @@ impl aoc_2019_13::OutputReader for VacuumCleanerDisplay {
     fn read(&mut self, output_value: &str) -> Result<(), Error> {
         let value: i64 = output_value.parse().map_err(|err| Error::new(ErrorKind::InvalidInput, err))?;
 
-        if value >= 0 && value < 256 {
-            print!("{}", char::from(value as u8))
-        } else {
-            println!("{}", value);
-        }
+        self.collector.as_mut().map(|v| v.push(value));
+
+        VacuumCleanerDisplay::display_value(value);
 
         Ok(())
     }
 
     fn finalize_input_sequence(&mut self) {
-        let mut collector = self.reader.collector.borrow_mut();
-        let output = collector.get_output();
-
-        if !output.is_empty() {
-            let map: ScaffoldingMap = output.try_into().unwrap();
-
-            print!("{}", map);
-            collector.clear()
-        }
+        let result: Option<Result<ScaffoldingMap, String>> = self.collector.take().map(|v| (&v).try_into());
     }
 }
 
-struct VacuumController {
 
+struct VacuumController {
+    cleaner: Rc<RefCell<VacuumCleanerController>>,
 }
 
 impl VacuumController {
-    fn new() -> Self {
+    fn new(cleaner: Rc<RefCell<VacuumCleanerController>>) -> Self {
         Self {
-
+            cleaner,
         }
     }
 }
 
 impl io::Read for VacuumController {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        let bytes: Vec<u8> = vec![65, 44, 66, 10];
-
-        (&bytes[..]).read(buf)
+        let cleaner = self.cleaner.borrow();
+        // main
+        let main_function = cleaner.main_function();
+        // function a
+        // function b
+        // function c
+        // video stream
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+}
+
+impl VacuumCleanerDisplay {
+    fn display_value(value: i64) {
+        if value >= 0 && value < 256 {
+            print!("{}", char::from(value as u8))
+        } else {
+            println!("{}", value);
+        }
+    }
 }
