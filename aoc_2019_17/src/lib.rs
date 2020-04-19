@@ -1,4 +1,5 @@
-use crate::MapElement::{Robot, Space, Wall};
+use crate::Direction::{East, North, South, West};
+use crate::MapElement::{Char, Robot, Space, Wall};
 use crate::RawElement::{Newline, Other};
 use aoc_common::math::Point;
 use core::fmt;
@@ -7,7 +8,7 @@ use std::collections::HashSet;
 use std::convert::{TryFrom, TryInto};
 use std::fmt::Formatter;
 use std::io;
-use std::io::Error;
+use std::io::{Error, ErrorKind};
 use std::iter::Enumerate;
 use std::rc::Rc;
 use std::slice::Iter;
@@ -192,19 +193,38 @@ impl TryFrom<i64> for RawElement {
 pub enum MapElement {
     Wall,
     Space,
-    Robot,
-    Intersection,
+    Robot(Option<Direction>),
+    Char(char),
+}
+
+#[derive(Debug, PartialEq, Copy, Clone)]
+pub enum Direction {
+    North,
+    East,
+    South,
+    West,
+}
+
+impl ToString for Direction {
+    fn to_string(&self) -> String {
+        match self {
+            North => "^",
+            East => ">",
+            South => "v",
+            West => "<",
+        }
+        .into()
+    }
 }
 
 impl ToString for MapElement {
     fn to_string(&self) -> String {
         match self {
-            Wall => "#",
-            Space => ".",
-            Robot => "R",
-            Intersection => "O",
+            Wall => "#".into(),
+            Space => ".".into(),
+            Robot(direction) => direction.map(|d| d.to_string()).unwrap_or("X".into()),
+            Char(chr) => chr.to_string(),
         }
-        .into()
     }
 }
 
@@ -212,11 +232,15 @@ impl TryFrom<i64> for MapElement {
     type Error = String;
 
     fn try_from(value: i64) -> Result<Self, Self::Error> {
-        match value {
-            35 => Ok(Wall),
-            46 => Ok(Space),
-            94 => Ok(Robot),
-            x => Err(format!("Cannot parse MapElement from {}.", x)),
+        match char::from(value as u8) {
+            '#' => Ok(Wall),
+            '.' => Ok(Space),
+            '^' => Ok(Robot(Some(North))),
+            '>' => Ok(Robot(Some(East))),
+            '<' => Ok(Robot(Some(West))),
+            'v' => Ok(Robot(Some(South))),
+            'X' => Ok(Robot(None)),
+            x => Ok(Char(x)),
         }
     }
 }
@@ -236,6 +260,10 @@ impl IntegerCollector {
 
     fn push(&mut self, value: i64) {
         self.values.push(value);
+    }
+
+    fn clear(&mut self) {
+        self.values.clear();
     }
 }
 
@@ -260,7 +288,7 @@ impl aoc_2019_13::OutputReader for IntegerReader {
         Ok(())
     }
 
-    fn finalize_input_sequence(&self) {}
+    fn finalize_input_sequence(&mut self) {}
 }
 
 pub fn find_intersections(input_map: &ScaffoldingMap) -> Vec<Point> {
@@ -289,6 +317,89 @@ pub fn find_intersections(input_map: &ScaffoldingMap) -> Vec<Point> {
 
 fn is_accessible(map_element: MapElement) -> bool {
     map_element != MapElement::Space
+}
+
+pub struct VacuumCleaner {
+    program: Vec<i64>,
+}
+
+impl VacuumCleaner {
+    pub fn new(program: &Vec<i64>) -> Self {
+        Self {
+            program: program.clone(),
+        }
+    }
+
+    pub fn execute(&mut self) {
+        let mut output =
+            aoc_2019_13::IntComputerOutputReader::new(Box::new(VacuumCleanerDisplay::new()));
+
+        let mut computer = aoc_2019_2::IntComputer::new(
+            self.program.clone(),
+            io::BufReader::new(io::stdin()),
+            &mut output,
+        );
+
+        computer.compute();
+    }
+}
+
+struct VacuumCleanerDisplay {
+    reader: IntegerReader,
+}
+
+impl VacuumCleanerDisplay {
+    fn new() -> Self {
+        Self {
+            reader: IntegerReader::new(Rc::new(RefCell::new(IntegerCollector::new()))),
+        }
+    }
+}
+
+impl aoc_2019_13::OutputReader for VacuumCleanerDisplay {
+    fn read(&mut self, output_value: &str) -> Result<(), Error> {
+        let value: i64 = output_value.parse().map_err(|err| Error::new(ErrorKind::InvalidInput, err))?;
+
+        if value >= 0 && value < 256 {
+            print!("{}", char::from(value as u8))
+        } else {
+            println!("{}", value);
+        }
+
+        Ok(())
+    }
+
+    fn finalize_input_sequence(&mut self) {
+        let mut collector = self.reader.collector.borrow_mut();
+        let output = collector.get_output();
+
+        if !output.is_empty() {
+            let map: ScaffoldingMap = output.try_into().unwrap();
+
+            print!("{}", map);
+            collector.clear()
+        }
+    }
+}
+
+struct VacuumController {
+
+}
+
+impl VacuumController {
+    fn new() -> Self {
+        Self {
+
+        }
+    }
+}
+
+impl io::Read for VacuumController {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        let bytes: Vec<u8> = vec![65, 44, 66, 10];
+
+        (&bytes[..]).read(buf)
+    }
 }
 
 #[cfg(test)]
