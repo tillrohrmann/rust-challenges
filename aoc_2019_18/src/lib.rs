@@ -1,17 +1,65 @@
 use aoc_common::{GenericResult, GenericError};
 use std::convert::{TryInto, TryFrom};
-use core::fmt;
+use core::{fmt, slice};
 use std::fmt::Formatter;
+use aoc_common::math::Point;
+use std::collections::{HashSet, BinaryHeap};
+use std::cmp::Ordering;
 
 pub struct Map {
     map: Vec<MapElement>,
     width: usize,
 }
 
+impl Map {
+    fn new(map: Vec<MapElement>, width: usize) -> Map {
+        Map{
+            map,
+            width,
+        }
+    }
+
+    fn get(&self, point: Point) -> Option<MapElement> {
+        let Point(x, y) = point;
+
+        let index = x + y * self.width as isize;
+
+        if index < 0 {
+            None
+        } else {
+            self.map.get(index as usize).map(MapElement::to_owned)
+        }
+    }
+
+    fn iter(&self) -> MapIterator<'_> {
+        MapIterator::new(self.map.iter())
+    }
+}
+
+struct MapIterator<'a> {
+    vector_iterator: slice::Iter<'a, MapElement>,
+}
+
+impl<'a> MapIterator<'a> {
+    fn new(vector_iterator: slice::Iter<'a, MapElement>) -> MapIterator<'a> {
+        MapIterator {
+            vector_iterator,
+        }
+    }
+}
+
+impl<'a> Iterator for MapIterator<'a> {
+    type Item = &'a MapElement;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.vector_iterator.next()
+    }
+}
+
 impl fmt::Display for Map {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        for (idx, mapElement) in self.map.iter().enumerate() {
-            write!(f, "{}", mapElement)?;
+        for (idx, map_element) in self.map.iter().enumerate() {
+            write!(f, "{}", map_element)?;
 
             if (idx+1) % self.width == 0 {
                 writeln!(f, "")?;
@@ -22,6 +70,7 @@ impl fmt::Display for Map {
     }
 }
 
+#[derive(Copy, Clone)]
 enum MapElement {
     Wall,
     Key(char),
@@ -59,15 +108,6 @@ impl fmt::Display for MapElement {
     }
 }
 
-impl Map {
-    fn new(map: Vec<MapElement>, width: usize) -> Map {
-        Map{
-            map,
-            width,
-        }
-    }
-}
-
 pub fn read_map(filename: &str) -> GenericResult<Map> {
     let lines = aoc_common::read_raw_file_content(filename)?;
 
@@ -88,18 +128,94 @@ fn read_from_string(map: &str) -> GenericResult<Map> {
     read_map_from_lines(lines)
 }
 
-struct Solver {
-
+struct Solver<'a> {
+    map: &'a Map,
 }
 
-impl Solver {
-    fn new(map: &Map) -> Solver {
-        Solver{}
+impl<'a> Solver<'a> {
+    fn new(map: &'a Map) -> Solver {
+        Solver{
+            map,
+        }
+    }
+
+    fn try_solve(&self) -> Result<usize, String> {
+        let key_set = Solver::find_all_keys(self.map);
+        let starting_position = Solver::find(self.map, MapElement::Entrance).ok_or("No entrance found")?;
+
+        let mut solution_candidates = BinaryHeap::new();
+
+        solution_candidates.push(SolutionCandidate::new(starting_position, 0, HashSet::new(), Vec::new()));
+
+        Ok(0)
     }
 
     fn solve(&self) -> usize {
-        0
+        self.try_solve().unwrap()
     }
+
+    fn find_all_keys(map: &Map) -> HashSet<char> {
+        map.iter().flat_map(|element| {
+            match *element {
+                MapElement::Key(key) => Some(key),
+                _ => None
+            }
+        }).collect()
+    }
+
+    fn find(map: &Map, map_element: MapElement) -> Option<Point> {
+        None
+    }
+}
+
+struct SolutionCandidate {
+    position: Point,
+    steps: usize,
+    keys: HashSet<char>,
+    history: Vec<char>,
+}
+
+impl SolutionCandidate {
+    fn new(position: Point, steps: usize, keys: HashSet<char>, history: Vec<char>) -> SolutionCandidate {
+        SolutionCandidate {
+            position,
+            steps,
+            keys,
+            history,
+        }
+    }
+
+    fn collect_key_at(&self, new_position: Point, steps:usize, key: char) -> SolutionCandidate {
+        let mut new_keys = HashSet::new();
+        new_keys.extend(&self.keys);
+        new_keys.insert(key);
+        let mut new_history = self.history.clone();
+        new_history.push(key);
+
+        SolutionCandidate::new(new_position, self.steps + steps, new_keys, new_history)
+    }
+}
+
+impl Ord for SolutionCandidate {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.steps.cmp(&other.steps)
+    }
+}
+
+impl PartialOrd for SolutionCandidate {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        self.steps.partial_cmp(&other.steps)
+    }
+}
+
+impl PartialEq for SolutionCandidate {
+    fn eq(&self, other: &Self) -> bool {
+        self.steps.eq(&other.steps)
+    }
+}
+
+impl Eq for SolutionCandidate {
+
 }
 
 #[cfg(test)]
