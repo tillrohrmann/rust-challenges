@@ -1,3 +1,4 @@
+use crate::CommandSequence::{Comma, Command};
 use crate::Direction::{East, North, South, West};
 use crate::MapElement::{Char, Robot, Space, Wall};
 use crate::RawElement::{Newline, Other};
@@ -6,7 +7,7 @@ use core::fmt;
 use std::cell::RefCell;
 use std::collections::HashSet;
 use std::convert::{TryFrom, TryInto};
-use std::fmt::Formatter;
+use std::fmt::{Formatter, Debug};
 use std::io;
 use std::io::{Error, ErrorKind};
 use std::iter::Enumerate;
@@ -332,12 +333,14 @@ impl VacuumCleaner {
 
     pub fn execute(&mut self) {
         let vacuum_cleaner_controller = Rc::new(RefCell::new(VacuumCleanerController::new()));
-        let mut output =
-            aoc_2019_13::IntComputerOutputReader::new(Box::new(VacuumCleanerDisplay::new(Rc::clone(&vacuum_cleaner_controller))));
+        let mut output = aoc_2019_13::IntComputerOutputReader::new(Box::new(
+            VacuumCleanerDisplay::new(Rc::clone(&vacuum_cleaner_controller)),
+        ));
+        let input = VacuumController::new(Rc::clone(&vacuum_cleaner_controller));
 
         let mut computer = aoc_2019_2::IntComputer::new(
             self.program.clone(),
-            io::BufReader::new(io::stdin()),
+            io::BufReader::new(input),
             &mut output,
         );
 
@@ -345,12 +348,61 @@ impl VacuumCleaner {
     }
 }
 
-struct VacuumCleanerController {
+#[derive(Debug, Copy, Clone)]
+enum MainFunction {
+    A,
+    B,
+    C,
 }
+
+impl ToString for MainFunction {
+    fn to_string(&self) -> String {
+        match self {
+            MainFunction::A => 'A'.to_string(),
+            MainFunction::B => 'B'.to_string(),
+            MainFunction::C => 'C'.to_string(),
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug)]
+enum Function {
+    Left,
+    Right,
+    Move(u32),
+}
+
+impl ToString for Function {
+    fn to_string(&self) -> String {
+        match self {
+            Function::Left => 'L'.to_string(),
+            Function::Right => 'R'.to_string(),
+            Function::Move(length) => format!("{}", length),
+        }
+    }
+}
+
+struct VacuumCleanerController {}
 
 impl VacuumCleanerController {
     fn new() -> Self {
-        Self{}
+        Self {}
+    }
+
+    fn get_main_command(&self) -> Vec<MainFunction> {
+        vec![MainFunction::A, MainFunction::B, MainFunction::A, MainFunction::C, MainFunction::A, MainFunction::B, MainFunction::C, MainFunction::B, MainFunction::C, MainFunction::A]
+    }
+
+    fn get_a_function(&self) -> Vec<Function> {
+        vec![Function::Left, Function::Move(12), Function::Right, Function::Move(4), Function::Right, Function::Move(4), Function::Left, Function::Move(6)]
+    }
+
+    fn get_b_function(&self) -> Vec<Function> {
+        vec![Function::Left, Function::Move(12), Function::Right, Function::Move(4), Function::Right, Function::Move(4), Function::Right, Function::Move(12)]
+    }
+
+    fn get_c_function(&self) -> Vec<Function> {
+        vec![Function::Left, Function::Move(10), Function::Left, Function::Move(6), Function::Right, Function::Move(4)]
     }
 }
 
@@ -370,7 +422,9 @@ impl VacuumCleanerDisplay {
 
 impl aoc_2019_13::OutputReader for VacuumCleanerDisplay {
     fn read(&mut self, output_value: &str) -> Result<(), Error> {
-        let value: i64 = output_value.parse().map_err(|err| Error::new(ErrorKind::InvalidInput, err))?;
+        let value: i64 = output_value
+            .parse()
+            .map_err(|err| Error::new(ErrorKind::InvalidInput, err))?;
 
         self.collector.as_mut().map(|v| v.push(value));
 
@@ -380,32 +434,156 @@ impl aoc_2019_13::OutputReader for VacuumCleanerDisplay {
     }
 
     fn finalize_input_sequence(&mut self) {
-        let result: Option<Result<ScaffoldingMap, String>> = self.collector.take().map(|v| (&v).try_into());
+        let result: Option<Result<ScaffoldingMap, String>> =
+            self.collector.take().map(|v| (&v).try_into());
     }
 }
 
+#[derive(Debug)]
+enum CommandSequence<T> {
+    Command(T),
+    Comma,
+    Newline,
+}
+
+impl<T> ToString for &CommandSequence<T> where T: ToString + Copy {
+    fn to_string(&self) -> String {
+        match self {
+            CommandSequence::Comma => ','.to_string(),
+            CommandSequence::Newline => '\n'.to_string(),
+            CommandSequence::Command(c) => (*c).to_string(),
+        }
+    }
+}
 
 struct VacuumController {
     cleaner: Rc<RefCell<VacuumCleanerController>>,
+    command: Option<(Vec<u8>, usize)>,
+    video_feed: bool,
 }
 
 impl VacuumController {
     fn new(cleaner: Rc<RefCell<VacuumCleanerController>>) -> Self {
         Self {
             cleaner,
+            command: None,
+            video_feed: false,
         }
+    }
+
+    fn get_vacuum_controller_command(&self) -> (Vec<u8>, usize) {
+        let main_command = self.cleaner.borrow().get_main_command();
+        let a_function = self.cleaner.borrow().get_a_function();
+        let b_function = self.cleaner.borrow().get_b_function();
+        let c_function = self.cleaner.borrow().get_c_function();
+        let video_feed = self.get_video_feed();
+
+        let main_command = VacuumController::translate_main_function(&main_command);
+        let a_function = VacuumController::translate_function(&a_function);
+        let b_function = VacuumController::translate_function(&b_function);
+        let c_function = VacuumController::translate_function(&c_function);
+
+        let continuous_video_feed = VacuumController::translate_video_feed(video_feed);
+        let mut result: Vec<u8> = Vec::new();
+        result.extend(main_command);
+        result.extend(a_function);
+        result.extend(b_function);
+        result.extend(c_function);
+        result.extend(continuous_video_feed);
+
+        (result, 0)
+    }
+
+    fn get_video_feed(&self) -> bool {
+        self.video_feed
+    }
+
+    fn translate_video_feed(video_feed: bool) -> Vec<u8> {
+        let video_command = if video_feed {
+            vec!["y"]
+        } else {
+            vec!["n"]
+        };
+        let command_sequence = VacuumController::translate_into_command_sequence(&video_command);
+        VacuumController::translate_into_raw_sequence(&command_sequence)
+    }
+
+    fn translate_main_function(main_command: &Vec<MainFunction>) -> Vec<u8> {
+        let command_sequence: Vec<CommandSequence<MainFunction>> =
+            VacuumController::translate_into_command_sequence(main_command);
+        VacuumController::translate_into_raw_sequence(&command_sequence)
+    }
+
+    fn translate_into_command_sequence<T: Debug + Copy>(main_command: &Vec<T>) -> Vec<CommandSequence<T>> {
+        let mut result: Vec<CommandSequence<T>> = main_command
+            .into_iter()
+            .flat_map(|&command| vec![Command(command), Comma])
+            .collect();
+        *result.last_mut().unwrap() = CommandSequence::Newline;
+
+        result
+    }
+
+    fn translate_into_raw_sequence<T>(command_sequence: &Vec<CommandSequence<T>>) -> Vec<u8> where T: Copy + ToString {
+        let result: Vec<u8> = command_sequence
+            .into_iter()
+            .flat_map(|command| {
+                let str: String = command.to_string();
+                let result: Vec<u8> = str.chars().flat_map(|chr| {
+                    let numeric_value = chr as u8;
+                    let digits: Vec<u8> = VacuumController::split_into_digits(numeric_value);
+
+                    let mut foobar: Vec<char> = digits
+                        .into_iter()
+                        .map(|digit| char::from('0' as u8 + digit))
+                        .collect();
+                    foobar.push('\n');
+
+                    foobar.into_iter().map(|c| c as u8).collect::<Vec<u8>>()
+                }).collect();
+
+                result
+            })
+            .collect();
+
+        result
+    }
+
+    fn translate_function(function: &Vec<Function>) -> Vec<u8> {
+        let command_sequence = VacuumController::translate_into_command_sequence(function);
+        VacuumController::translate_into_raw_sequence(&command_sequence)
+    }
+
+    fn split_into_digits(mut value: u8) -> Vec<u8> {
+        let mut result = Vec::with_capacity(3);
+
+        while value > 0 {
+            result.push(value % 10);
+            value /= 10;
+        }
+
+        result.reverse();
+
+        result
     }
 }
 
 impl io::Read for VacuumController {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        let cleaner = self.cleaner.borrow();
-        // main
-        let main_function = cleaner.main_function();
-        // function a
-        // function b
-        // function c
-        // video stream
+        if self.command.is_none() {
+            let (command, offset) = self.get_vacuum_controller_command();
+            self.command = Some((command, offset));
+        };
+
+        let (command, offset) = self.command.as_mut().unwrap();
+
+        let result = (&command[*offset..]).read(buf);
+
+        if let Some(&bytes_read) = result.as_ref().ok() {
+            *offset += bytes_read;
+        }
+
+        result
     }
 }
 
