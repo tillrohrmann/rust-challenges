@@ -1,10 +1,11 @@
 use aoc_common::{GenericResult, GenericError};
 use std::convert::{TryInto, TryFrom};
-use core::{fmt, slice};
+use core::{fmt, slice, iter};
 use std::fmt::Formatter;
 use aoc_common::math::Point;
 use std::collections::{HashSet, BinaryHeap};
 use std::cmp::Ordering;
+use std::iter::Enumerate;
 
 pub struct Map {
     map: Vec<MapElement>,
@@ -13,7 +14,7 @@ pub struct Map {
 
 impl Map {
     fn new(map: Vec<MapElement>, width: usize) -> Map {
-        Map{
+        Map {
             map,
             width,
         }
@@ -33,6 +34,32 @@ impl Map {
 
     fn iter(&self) -> MapIterator<'_> {
         MapIterator::new(self.map.iter())
+    }
+
+    fn pos_iter(&self) -> MapPosIterator<'_> {
+        MapPosIterator::new(self.map.iter().enumerate(), self.width)
+    }
+}
+
+struct MapPosIterator<'a> {
+    map_pos_iterator: Enumerate<slice::Iter<'a, MapElement>>,
+    width: usize,
+}
+
+impl<'a> MapPosIterator<'a> {
+    fn new(map_pos_iterator: Enumerate<slice::Iter<'a, MapElement>>, width: usize) -> MapPosIterator<'a> {
+        MapPosIterator {
+            map_pos_iterator,
+            width,
+        }
+    }
+}
+
+impl<'a> Iterator for MapPosIterator<'a> {
+    type Item = (Point, &'a MapElement);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.map_pos_iterator.next().map(|(idx, map_element)| (Point((idx % self.width) as isize, (idx / self.width) as isize), map_element))
     }
 }
 
@@ -61,7 +88,7 @@ impl fmt::Display for Map {
         for (idx, map_element) in self.map.iter().enumerate() {
             write!(f, "{}", map_element)?;
 
-            if (idx+1) % self.width == 0 {
+            if (idx + 1) % self.width == 0 {
                 writeln!(f, "")?;
             }
         }
@@ -70,7 +97,7 @@ impl fmt::Display for Map {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq)]
 enum MapElement {
     Wall,
     Key(char),
@@ -134,7 +161,7 @@ struct Solver<'a> {
 
 impl<'a> Solver<'a> {
     fn new(map: &'a Map) -> Solver {
-        Solver{
+        Solver {
             map,
         }
     }
@@ -147,7 +174,50 @@ impl<'a> Solver<'a> {
 
         solution_candidates.push(SolutionCandidate::new(starting_position, 0, HashSet::new(), Vec::new()));
 
-        Ok(0)
+        while let Some(current_solution_candidate) = solution_candidates.pop() {
+            if key_set == *current_solution_candidate.get_keys() {
+                return Ok(current_solution_candidate.get_steps())
+            }
+
+            let paths: Vec<PathToKey> = Solver::find_paths_to_keys(current_solution_candidate.get_position(), current_solution_candidate.get_keys(), self.map);
+
+            for path_to_key in paths {
+                let new_solution_candidate = current_solution_candidate.collect_key_at(path_to_key.position, path_to_key.steps, path_to_key.key);
+                solution_candidates.push(new_solution_candidate);
+            }
+        }
+
+        Err("Could not find a valid solution".to_string())
+    }
+
+    fn find_paths_to_keys(position: Point, keys: &HashSet<char>, map: &Map) -> Vec<PathToKey> {
+        let mut positions = Vec::new();
+        positions.push((position, 0));
+        let mut visited = HashSet::new();
+        let mut result = Vec::new();
+
+        while let Some((current_position, steps)) = positions.pop() {
+            let element = map.get(current_position).unwrap();
+
+            if let MapElement::Key(key) = element {
+                result.push(PathToKey::new(key, steps, current_position))
+            } else {
+                let neighbours: Vec<Point> = Solver::find_neighbours(current_position, map, keys);
+
+                for neighbour in neighbours {
+                    if !visited.contains(&neighbour) {
+                        visited.insert(neighbour);
+                        positions.push((neighbour, steps + 1))
+                    }
+                }
+            }
+        }
+
+        result
+    }
+
+    fn find_neighbours(position: Point, map: &Map, keys: &HashSet<char>) -> Vec<Point> {
+        vec![]
     }
 
     fn solve(&self) -> usize {
@@ -163,8 +233,24 @@ impl<'a> Solver<'a> {
         }).collect()
     }
 
-    fn find(map: &Map, map_element: MapElement) -> Option<Point> {
-        None
+    fn find(map: &Map, search_element: MapElement) -> Option<Point> {
+        map.pos_iter().find(|&(_, map_element)| search_element == *map_element).map(|(p, _)| p)
+    }
+}
+
+struct PathToKey {
+    key: char,
+    steps: usize,
+    position: Point,
+}
+
+impl PathToKey {
+    fn new(key: char, steps: usize, position: Point) -> PathToKey {
+        PathToKey {
+            key,
+            steps,
+            position,
+        }
     }
 }
 
@@ -185,7 +271,19 @@ impl SolutionCandidate {
         }
     }
 
-    fn collect_key_at(&self, new_position: Point, steps:usize, key: char) -> SolutionCandidate {
+    fn get_position(&self) -> Point {
+        self.position
+    }
+
+    fn get_keys(&self) -> &HashSet<char> {
+        &self.keys
+    }
+
+    fn get_steps(&self) -> usize {
+        self.steps
+    }
+
+    fn collect_key_at(&self, new_position: Point, steps: usize, key: char) -> SolutionCandidate {
         let mut new_keys = HashSet::new();
         new_keys.extend(&self.keys);
         new_keys.insert(key);
@@ -214,9 +312,7 @@ impl PartialEq for SolutionCandidate {
     }
 }
 
-impl Eq for SolutionCandidate {
-
-}
+impl Eq for SolutionCandidate {}
 
 #[cfg(test)]
 mod tests {
