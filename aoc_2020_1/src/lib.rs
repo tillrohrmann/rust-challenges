@@ -14,6 +14,20 @@ pub fn find_two_numbers(input: &Vec<i32>) -> Result<i32, String> {
     Err("Could not find matching pair of numbers.".to_string())
 }
 
+pub fn find_three_numbers(input: &Vec<i32>) -> Result<i32, String> {
+    for i in 0..input.len() {
+        for j in (i+1)..input.len() {
+            for k in (j+1)..input.len() {
+                if input[i] + input[j] + input[k] == 2020 {
+                    return Ok(input[i] * input[j] * input[k]);
+                }
+            }
+        }
+    }
+
+    Err("Could not find matching pair of numbers.".to_string())
+}
+
 pub fn read_numbers(path: &str) -> Result<Vec<i32>, String> {
     let lines = read_lines(path).map_err(|err| format!("Could not read file because {}", err))?;
 
