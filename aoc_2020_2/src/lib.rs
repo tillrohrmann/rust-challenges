@@ -13,6 +13,11 @@ pub fn read_lines(path: &str) -> std::io::Result<Vec<String>> {
     BufReader::new(file).lines().collect()
 }
 
+pub enum ValidationMode {
+    Count,
+    Position,
+}
+
 #[derive(Debug, Eq, PartialEq)]
 pub struct PasswordLine {
     policy: Policy,
@@ -27,15 +32,22 @@ impl PasswordLine {
         }
     }
 
-    pub fn is_valid(&self) -> bool {
-        let mut character_counts = HashMap::new();
+    pub fn is_valid(&self, validation_mode: ValidationMode) -> bool {
+        match validation_mode {
+            ValidationMode::Count => {
+                let mut character_counts = HashMap::new();
 
-        for char in self.password.chars() {
-            let counter = character_counts.entry(char).or_insert(0);
-            *counter += 1;
+                for char in self.password.chars() {
+                    let counter = character_counts.entry(char).or_insert(0);
+                    *counter += 1;
+                }
+
+                self.policy.is_compliant_with_count(&character_counts)
+            },
+            ValidationMode::Position => {
+                self.policy.is_compliant_with_position(&self.password)
+            }
         }
-
-        self.policy.is_compliant(&character_counts)
     }
 }
 
@@ -64,7 +76,25 @@ impl Policy {
         }
     }
 
-    fn is_compliant(&self, counts: &HashMap<char, i32>) -> bool {
+    fn is_compliant_with_position(&self, password: &String) -> bool {
+        self.characters.iter().all(|(key, range)| Policy::complies_to(password, key, range))
+    }
+
+    fn complies_to(password: &String, key: &char, range: &Range) -> bool {
+        let mut chars = password.chars();
+
+        let first_char = chars.nth((range.min - 1) as usize);
+        let second_char = chars.nth((range.max - range.min - 1) as usize);
+
+        if let (Some(first), Some(second)) = (first_char, second_char) {
+            let result = (first.eq(key)) ^ (second.eq(key));
+            result
+        } else {
+            false
+        }
+    }
+
+    fn is_compliant_with_count(&self, counts: &HashMap<char, i32>) -> bool {
         self.characters.iter().all(|(key, range)| range.is_in_range(
             counts
                 .get(key)
@@ -136,17 +166,38 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_is_valid_password_line_position() {
+        let password_line = "1-3 a: abcde".parse::<PasswordLine>().unwrap();
+
+        assert!(password_line.is_valid(ValidationMode::Position));
+    }
+
+    #[test]
+    fn test_is_invalid_password_line_position() {
+        let password_line = "1-3 b: cdefg".parse::<PasswordLine>().unwrap();
+
+        assert!(!password_line.is_valid(ValidationMode::Position));
+    }
+
+    #[test]
+    fn test_is_invalid_password_line_position_2() {
+        let password_line = "2-9 c: ccccccccc".parse::<PasswordLine>().unwrap();
+
+        assert!(!password_line.is_valid(ValidationMode::Position));
+    }
+
+    #[test]
     fn test_is_valid_password_line() {
         let password_line = "1-7 c: foobarc".parse::<PasswordLine>().unwrap();
 
-        assert_eq!(password_line.is_valid(), true);
+        assert_eq!(password_line.is_valid(ValidationMode::Count), true);
     }
 
     #[test]
     fn test_is_invalid_password_line() {
         let password_line = "1-7 d: foobarc".parse::<PasswordLine>().unwrap();
 
-        assert_eq!(password_line.is_valid(), false);
+        assert_eq!(password_line.is_valid(ValidationMode::Count), false);
     }
 
     #[test]
