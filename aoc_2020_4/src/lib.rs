@@ -1,10 +1,148 @@
+#[macro_use] extern crate lazy_static;
+
 use std::collections::HashMap;
-use aoc_common::GenericResult;
 use std::convert::{TryFrom, TryInto};
+
+use aoc_common::GenericResult;
+
+use regex::Regex;
 
 #[derive(Debug)]
 pub struct Passport {
     fields: HashMap<PassportFields, String>,
+}
+
+pub trait Validator {
+    fn validate_passport(&self, passport: &Passport) -> GenericResult<bool>;
+}
+
+pub struct SimpleValidator {}
+
+impl Validator for SimpleValidator {
+    fn validate_passport(&self, passport: &Passport) -> GenericResult<bool> {
+        Ok(passport.fields.len() == 8 ||
+            (passport.fields.len() == 7 && !passport.fields.contains_key(&PassportFields::CountryId)))
+    }
+}
+
+impl SimpleValidator {
+    pub fn new() -> SimpleValidator {
+        SimpleValidator{}
+    }
+}
+
+pub struct Part2Validator {}
+
+impl Validator for Part2Validator {
+    fn validate_passport(&self, passport: &Passport) -> GenericResult<bool> {
+        let fields_validations: Vec<(PassportFields, fn(&Part2Validator, &String) -> GenericResult<bool>)> = vec![
+            (PassportFields::Height, Part2Validator::validate_height),
+            (PassportFields::BirthYear, Part2Validator::validate_birth_year),
+            (PassportFields::IssueYear, Part2Validator::validate_issue_year),
+            (PassportFields::ExpirationYear, Part2Validator::validate_expiration_year),
+            (PassportFields::HairColor, Part2Validator::validate_hair_color),
+            (PassportFields::EyeColor, Part2Validator::validate_eye_color),
+            (PassportFields::PassportId, Part2Validator::validate_passport_id)];
+
+        let results: GenericResult<Vec<bool>> = fields_validations.iter()
+            .map(|(key, validator)| passport.fields
+                .get(key)
+                .map(|value| {
+                    validator(self, value)
+                })
+                .unwrap_or(Ok(false)))
+            .collect();
+
+        results.map(|values| {
+            let result = values.iter().all(|x| *x);
+            result
+        })
+    }
+}
+
+impl Part2Validator {
+    pub fn new() -> Part2Validator {
+        Part2Validator {}
+    }
+
+    fn validate_height(&self, value: &String) -> GenericResult<bool> {
+        if value.ends_with("in") || value.ends_with("cm") {
+            let (height_string, unit) = value.split_at(value.len() - 2);
+
+            let height = height_string.parse::<u32>()?;
+
+            let result =
+            if unit == "in" {
+                Ok(59 <= height && height <= 76)
+            } else {
+                Ok(150 <= height && height <= 193)
+            };
+
+            result
+        } else {
+            Ok(false)
+        }
+    }
+
+    fn validate_birth_year(&self, value: &String) -> GenericResult<bool> {
+        if value.len() == 4 {
+            let year: i32 = value.parse()?;
+
+            let result = Ok(1920 <= year && year <= 2002);
+
+            result
+        } else {
+            Ok(false)
+        }
+    }
+
+    fn validate_issue_year(&self, value: &String) -> GenericResult<bool> {
+        if value.len() == 4 {
+            let year: i32 = value.parse()?;
+
+            Ok(2010 <= year && year <= 2020)
+        } else {
+            Ok(false)
+        }
+    }
+
+    fn validate_expiration_year(&self, value: &String) -> GenericResult<bool> {
+        if value.len() == 4 {
+            let year: i32 = value.parse()?;
+
+            Ok(2020 <= year && year <= 2030)
+        } else {
+            Ok(false)
+        }
+    }
+
+    fn validate_hair_color(&self, value: &String) -> GenericResult<bool> {
+        lazy_static! {
+            static ref RE: Regex = Regex::new(r"^#[0-9a-f]{6}$").unwrap();
+        }
+        let is_match = RE.is_match(value);
+
+        Ok(is_match)
+    }
+
+    fn validate_eye_color(&self, value: &String) -> GenericResult<bool> {
+        match value.as_str() {
+            "amb" | "blu" | "brn" | "gry" | "grn" | "hzl" | "oth" => {
+                Ok(true)
+            },
+            _ => Ok(false)
+        }
+    }
+
+    fn validate_passport_id(&self, value: &String) -> GenericResult<bool> {
+        lazy_static! {
+            static ref RE: Regex = Regex::new(r"^[0-9]{9}$").unwrap();
+        }
+
+        let is_match = RE.is_match(value);
+
+        Ok(is_match)
+    }
 }
 
 impl Passport {
@@ -14,11 +152,6 @@ impl Passport {
         }
     }
 
-    pub fn is_valid(&self) -> bool {
-        self.fields.len() == 8 ||
-            (self.fields.len() == 7 && !self.fields.contains_key(&PassportFields::CountryId))
-    }
-
     pub fn parse_passport(key_value_pairs: &str) -> GenericResult<Passport> {
         let splits = key_value_pairs.split(" ");
         let mut fields = HashMap::new();
@@ -26,8 +159,8 @@ impl Passport {
         for split in splits {
             let mut key_value = split.split(":");
 
-            let key = key_value.next().ok_or("Did not find key.")?;
-            let value = key_value.next().ok_or("Did not find value.")?;
+            let key = key_value.next().ok_or("Did not find key.")?.trim();
+            let value = key_value.next().ok_or("Did not find value.")?.trim();
 
             fields.insert(key.try_into()?, value.to_string());
         }
@@ -93,7 +226,7 @@ impl TryFrom<&str> for PassportFields {
 
 #[cfg(test)]
 mod tests {
-    use crate::parse_passports_from_lines;
+    use super::*;
 
     #[test]
     fn simple_example() {
@@ -115,6 +248,57 @@ iyr:2011 ecl:brn hgt:59in";
 
         let passports = parse_passports_from_lines(&input).unwrap();
 
-        assert_eq!(passports.iter().filter(|passport| passport.is_valid()).count(), 2);
+        let validator = SimpleValidator::new();
+
+        assert_eq!(passports.iter().filter(|passport| validator.validate_passport(passport).unwrap()).count(), 2);
+    }
+
+    #[test]
+    fn valid_examples() {
+        let input = r"pid:087499704 hgt:74in ecl:grn iyr:2012 eyr:2030 byr:1980
+hcl:#623a2f
+
+eyr:2029 ecl:blu cid:129 byr:1989
+iyr:2014 pid:896056539 hcl:#a97842 hgt:165cm
+
+hcl:#888785
+hgt:164cm byr:2001 iyr:2015 cid:88
+pid:545766238 ecl:hzl
+eyr:2022
+
+iyr:2010 hgt:158cm hcl:#b6652a ecl:blu byr:1944 eyr:2021 pid:093154719";
+
+        let input: Vec<String> = input.split("\n").map(|i| i.to_string()).collect();
+
+        let passports = parse_passports_from_lines(&input).unwrap();
+
+        let validator = Part2Validator::new();
+
+        assert_eq!(passports.iter().filter(|passport| validator.validate_passport(passport).unwrap()).count(), 4);
+    }
+
+    #[test]
+    fn invalid_examples() {
+        let input = r"eyr:1972 cid:100
+hcl:#18171d ecl:amb hgt:170 pid:186cm iyr:2018 byr:1926
+
+iyr:2019
+hcl:#602927 eyr:1967 hgt:170cm
+ecl:grn pid:012533040 byr:1946
+
+hcl:dab227 iyr:2012
+ecl:brn hgt:182cm pid:021572410 eyr:2020 byr:1992 cid:277
+
+hgt:59cm ecl:zzz
+eyr:2038 hcl:74454a iyr:2023
+pid:3556412378 byr:2007";
+
+        let input: Vec<String> = input.split("\n").map(|i| i.to_string()).collect();
+
+        let passports = parse_passports_from_lines(&input).unwrap();
+
+        let validator = Part2Validator::new();
+
+        assert_eq!(passports.iter().filter(|passport| validator.validate_passport(passport).unwrap()).count(), 0);
     }
 }

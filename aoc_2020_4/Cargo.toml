@@ -8,3 +8,5 @@ edition = "2018"
 
 [dependencies]
 aoc_common = { path = "../aoc_common" }
+regex = "1"
+lazy_static = "1.4.0"

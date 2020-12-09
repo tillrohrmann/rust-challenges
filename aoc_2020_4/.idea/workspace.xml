@@ -14,6 +14,10 @@
       <change beforePath="$PROJECT_DIR$/../aoc_2019_18/src/bin/main.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../aoc_2019_18/src/bin/main.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../aoc_2019_18/src/lib.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../aoc_2019_18/src/lib.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../aoc_2020_3/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/../aoc_2020_3/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/Cargo.toml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/bin/main.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/bin/main.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/lib.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib.rs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -62,6 +66,18 @@
         <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
       </method>
     </configuration>
+    <configuration name="Test tests::invalid_examples" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
+      <option name="channel" value="DEFAULT" />
+      <option name="command" value="test --package aoc_2020_4 --lib tests::invalid_examples -- --exact" />
+      <option name="allFeatures" value="false" />
+      <option name="emulateTerminal" value="false" />
+      <option name="backtrace" value="SHORT" />
+      <option name="workingDirectory" value="file://$PROJECT_DIR$" />
+      <envs />
+      <method v="2">
+        <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
+      </method>
+    </configuration>
     <configuration name="Test" type="CargoCommandRunConfiguration" factoryName="Cargo Command">
       <option name="channel" value="DEFAULT" />
       <option name="command" value="test --package aoc_2020_4 --lib tests" />
@@ -74,19 +90,16 @@
         <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
       </method>
     </configuration>
-    <configuration default="true" type="GradleAppRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" PASS_PARENT_ENVS_2="true">
-      <method v="2">
-        <option name="com.jetbrains.cidr.cpp.gradle.execution.GradleNativeBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
-      </method>
-    </configuration>
     <recent_temporary>
       <list>
         <item itemvalue="Cargo.Run main" />
+        <item itemvalue="Cargo.Test tests::invalid_examples" />
       </list>
     </recent_temporary>
   </component>
   <component name="RustProjectSettings">
     <option name="toolchainHomeDirectory" value="$USER_HOME$/.cargo/bin" />
+    <option name="version" value="2" />
   </component>
   <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
   <component name="TaskManager">
@@ -96,7 +109,11 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1607189911755</updated>
-      <workItem from="1607189913055" duration="2848000" />
+      <workItem from="1607189913055" duration="3105000" />
+      <workItem from="1607292027636" duration="2615000" />
+      <workItem from="1607420246124" duration="1301000" />
+      <workItem from="1607451022671" duration="511000" />
+      <workItem from="1607466877442" duration="1575000" />
     </task>
     <servers />
   </component>
