@@ -14,10 +14,6 @@
       <change beforePath="$PROJECT_DIR$/../aoc_2019_18/src/bin/main.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../aoc_2019_18/src/bin/main.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../aoc_2019_18/src/lib.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../aoc_2019_18/src/lib.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../aoc_2020_3/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/../aoc_2020_3/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/Cargo.toml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/bin/main.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/bin/main.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/lib.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib.rs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -113,7 +109,7 @@
       <workItem from="1607292027636" duration="2615000" />
       <workItem from="1607420246124" duration="1301000" />
       <workItem from="1607451022671" duration="511000" />
-      <workItem from="1607466877442" duration="1575000" />
+      <workItem from="1607466877442" duration="1610000" />
     </task>
     <servers />
   </component>
