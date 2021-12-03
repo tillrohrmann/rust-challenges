@@ -3,8 +3,8 @@ use std::convert::{TryInto, TryFrom};
 use core::{fmt, slice, iter};
 use std::fmt::Formatter;
 use aoc_common::math::Point;
-use std::collections::{HashSet, BinaryHeap};
-use std::cmp::Ordering;
+use std::collections::{HashSet, BinaryHeap, HashMap};
+use std::cmp::{Ordering, Reverse};
 use std::iter::Enumerate;
 
 pub struct Map {
@@ -106,6 +106,18 @@ enum MapElement {
     Entrance,
 }
 
+impl MapElement {
+    fn to_char(&self) -> char {
+        match self {
+            MapElement::Wall => '#',
+            MapElement::Key(key) => *key,
+            MapElement::Door(door) => *door,
+            MapElement::Passage => '.',
+            MapElement::Entrance => '@',
+        }
+    }
+}
+
 impl TryFrom<char> for MapElement {
     type Error = String;
 
@@ -166,131 +178,61 @@ impl<'a> Solver<'a> {
         }
     }
 
-    fn try_solve(&self) -> Result<usize, String> {
-        let key_set = Solver::find_all_keys(self.map);
-        let starting_position = Solver::find(self.map, MapElement::Entrance).ok_or("No entrance found")?;
+    fn solve(&self) -> usize {
+        let graph = Graph::from_map(self.map);
+        let number_keys = graph.nodes.iter().filter(|&node| node.is_key()).count();
 
-        let mut solution_candidates = BinaryHeap::new();
-
-        solution_candidates.push(SolutionCandidate::new(starting_position, 0, HashSet::new(), Vec::new()));
-
-        while let Some(current_solution_candidate) = solution_candidates.pop() {
-            if key_set == *current_solution_candidate.get_keys() {
-                return Ok(current_solution_candidate.get_steps())
-            }
-
-            let paths: Vec<PathToKey> = Solver::find_paths_to_keys(current_solution_candidate.get_position(), current_solution_candidate.get_keys(), self.map);
-
-            for path_to_key in paths {
-                let new_solution_candidate = current_solution_candidate.collect_key_at(path_to_key.position, path_to_key.steps, path_to_key.key);
-                solution_candidates.push(new_solution_candidate);
-            }
-        }
-
-        Err("Could not find a valid solution".to_string())
-    }
-
-    fn find_paths_to_keys(position: Point, keys: &HashSet<char>, map: &Map) -> Vec<PathToKey> {
-        let mut positions = Vec::new();
-        positions.push((position, 0));
         let mut visited = HashSet::new();
-        let mut result = Vec::new();
+        let mut candidates = BinaryHeap::new();
+        candidates.push(Reverse(SolutionCandidate::new(GraphElement::Entrance, 0, HashSet::new())));
 
-        while let Some((current_position, steps)) = positions.pop() {
-            let element = map.get(current_position).unwrap();
-
-            if let MapElement::Key(key) = element {
-                result.push(PathToKey::new(key, steps, current_position))
+        while let Some(Reverse(candidate)) = candidates.pop() {
+            println!("{:?}", candidate);
+            if candidate.keys.len() == number_keys {
+                return candidate.steps;
             } else {
-                let neighbours: Vec<Point> = Solver::find_neighbours(current_position, map, keys);
+                if !visited.contains(&(candidate.position, candidate.get_sorted_keys())) {
+                    visited.insert((candidate.position, candidate.get_sorted_keys()));
+                    if let Some(neighbours) = graph.neighbour(&candidate.position) {
+                        for neighbour in neighbours {
+                            let can_go = match neighbour.node {
+                                GraphElement::Entrance => true,
+                                GraphElement::Door(door) => candidate.keys.contains(&door.to_ascii_lowercase()),
+                                GraphElement::Key(key) => true
+                            };
 
-                for neighbour in neighbours {
-                    if !visited.contains(&neighbour) {
-                        visited.insert(neighbour);
-                        positions.push((neighbour, steps + 1))
+                            if can_go {
+                                let new_key_set = match neighbour.node {
+                                    GraphElement::Key(key) => {
+                                        let mut new_key_set = candidate.keys.clone();
+                                        new_key_set.insert(key);
+                                        new_key_set
+                                    },
+                                    _ => candidate.keys.clone(),
+                                };
+
+                                candidates.push(Reverse(SolutionCandidate::new(neighbour.node, candidate.steps + neighbour.distance, new_key_set)));
+                            }
+                        }
                     }
                 }
             }
         }
 
-        result
-    }
-
-    fn find_neighbours(position: Point, map: &Map, keys: &HashSet<char>) -> Vec<Point> {
-        vec![]
-    }
-
-    fn solve(&self) -> usize {
-        self.try_solve().unwrap()
-    }
-
-    fn find_all_keys(map: &Map) -> HashSet<char> {
-        map.iter().flat_map(|element| {
-            match *element {
-                MapElement::Key(key) => Some(key),
-                _ => None
-            }
-        }).collect()
-    }
-
-    fn find(map: &Map, search_element: MapElement) -> Option<Point> {
-        map.pos_iter().find(|&(_, map_element)| search_element == *map_element).map(|(p, _)| p)
+        0
     }
 }
 
-struct PathToKey {
-    key: char,
-    steps: usize,
-    position: Point,
-}
-
-impl PathToKey {
-    fn new(key: char, steps: usize, position: Point) -> PathToKey {
-        PathToKey {
-            key,
-            steps,
-            position,
-        }
-    }
-}
-
+#[derive(PartialEq, Eq, Debug)]
 struct SolutionCandidate {
-    position: Point,
+    position: GraphElement,
     steps: usize,
     keys: HashSet<char>,
-    history: Vec<char>,
 }
 
-impl SolutionCandidate {
-    fn new(position: Point, steps: usize, keys: HashSet<char>, history: Vec<char>) -> SolutionCandidate {
-        SolutionCandidate {
-            position,
-            steps,
-            keys,
-            history,
-        }
-    }
-
-    fn get_position(&self) -> Point {
-        self.position
-    }
-
-    fn get_keys(&self) -> &HashSet<char> {
-        &self.keys
-    }
-
-    fn get_steps(&self) -> usize {
-        self.steps
-    }
-
-    fn collect_key_at(&self, new_position: Point, steps: usize, key: char) -> SolutionCandidate {
-        let mut new_keys = HashSet::new();
-        new_keys.extend(&self.keys);
-        new_keys.insert(key);
-        let mut new_history = self.history.clone();
-        new_history.push(key);
-
-        SolutionCandidate::new(new_position, self.steps + steps, new_keys, new_history)
+impl PartialOrd for SolutionCandidate {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        self.steps.partial_cmp(&other.steps)
     }
 }
 
@@ -300,19 +242,154 @@ impl Ord for SolutionCandidate {
     }
 }
 
-impl PartialOrd for SolutionCandidate {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        self.steps.partial_cmp(&other.steps)
+impl SolutionCandidate {
+    fn new(position: GraphElement, steps: usize, keys: HashSet<char>) -> SolutionCandidate {
+        SolutionCandidate {
+            position,
+            steps,
+            keys
+        }
+    }
+
+    fn get_sorted_keys(&self) -> Vec<char> {
+        let mut keys: Vec<char> = self.keys.iter().map(|&x| x).collect();
+        keys.sort();
+
+        keys
     }
 }
 
-impl PartialEq for SolutionCandidate {
-    fn eq(&self, other: &Self) -> bool {
-        self.steps.eq(&other.steps)
+pub fn solve_map(map: &Map) -> usize {
+    let solver = Solver::new(map);
+
+    solver.solve()
+}
+
+#[derive(PartialEq, Eq, Hash, Debug, Copy, Clone)]
+enum GraphElement {
+    Key(char),
+    Door(char),
+    Entrance,
+}
+
+impl GraphElement {
+    fn is_key(&self) -> bool {
+        match self {
+            GraphElement::Key(_) => true,
+            _ => false,
+        }
     }
 }
 
-impl Eq for SolutionCandidate {}
+impl TryFrom<&MapElement> for GraphElement {
+    type Error = String;
+
+    fn try_from(value: &MapElement) -> Result<Self, Self::Error> {
+        match value {
+            MapElement::Door(door) => Ok(GraphElement::Door(*door)),
+            MapElement::Key(key) => Ok(GraphElement::Key(*key)),
+            MapElement::Entrance => Ok(GraphElement::Entrance),
+            _ => Err(format!("Cannot convert {} into a GraphElement.", value))
+        }
+    }
+}
+
+#[derive(Debug)]
+struct Graph {
+    nodes: HashSet<GraphElement>,
+    neighbours: HashMap<GraphElement, HashSet<Neighbour>>,
+}
+
+impl Graph {
+    fn from_map(map: &Map) -> Graph {
+        let neighbours: Result<HashMap<GraphElement, HashSet<Neighbour>>, String> = map.pos_iter()
+            .filter(|(_, map_element)| Graph::is_node_candidate(map_element))
+            .map(|(starting_point, map_element)| (map_element.try_into().map(|m| (m, Graph::find_neighbours(starting_point, map)))))
+            .collect();
+
+        let neighbours = neighbours.unwrap();
+
+        Graph {
+            nodes: neighbours.keys().map(|&x| x).collect(),
+            neighbours: neighbours,
+        }
+    }
+
+    fn is_node_candidate(map_element: &MapElement) -> bool {
+        match map_element {
+            MapElement::Door(_) | MapElement::Key(_) | MapElement::Entrance => true,
+            _ => false
+        }
+    }
+
+    fn find_neighbours(starting_point: Point, map: &Map) -> HashSet<Neighbour> {
+        let directions = vec![Point(0, 1), Point(0, -1), Point(1, 0), Point(-1, 0)];
+        let mut search_front = Vec::new();
+        let mut visited = HashSet::new();
+        let mut result = HashSet::new();
+
+        search_front.push(Candidate::new(starting_point, 0));
+        visited.insert(starting_point);
+
+        while let Some(next_candidate) = search_front.pop() {
+            if let Some(map_element) = map.get(next_candidate.new_position) {
+                if Graph::is_node_candidate(&map_element) && next_candidate.new_position != starting_point {
+                    result.insert(Neighbour::new((&map_element).try_into().unwrap(), next_candidate.steps));
+                } else {
+                    let next_steps: Vec<Point> = directions.iter().map(|&direction| next_candidate.new_position + direction).collect();
+
+                    let next_steps: Vec<Point> = next_steps.into_iter()
+                        .filter(|next_step|
+                            !visited.contains(next_step) &&
+                                map
+                                    .get(*next_step)
+                                    .map_or(false, |element| element != MapElement::Wall))
+                        .collect();
+
+                    for next_step in next_steps {
+                        visited.insert(next_step);
+                        search_front.push(Candidate::new(next_step, next_candidate.steps + 1))
+                    }
+                }
+            }
+        }
+
+        result
+    }
+
+    fn neighbour(&self, graph_element: &GraphElement) -> Option<&HashSet<Neighbour>> {
+        self.neighbours.get(graph_element)
+    }
+}
+
+struct Candidate {
+    new_position: Point,
+    steps: usize,
+}
+
+impl Candidate {
+    fn new(position: Point, steps: usize) -> Candidate {
+        Candidate {
+            new_position: position,
+            steps,
+        }
+    }
+}
+
+#[derive(PartialEq, Eq, Hash, Debug)]
+struct Neighbour {
+    node: GraphElement,
+    distance: usize,
+}
+
+impl Neighbour {
+    fn new(node: GraphElement, distance: usize) -> Neighbour {
+        Neighbour{
+            node,
+            distance,
+        }
+    }
+}
 
 #[cfg(test)]
 mod tests {
