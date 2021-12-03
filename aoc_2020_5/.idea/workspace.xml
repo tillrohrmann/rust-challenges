@@ -13,10 +13,7 @@
       <change beforePath="$PROJECT_DIR$/../aoc_2019_18/input.txt" beforeDir="false" afterPath="$PROJECT_DIR$/../aoc_2019_18/input.txt" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../aoc_2019_18/src/bin/main.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../aoc_2019_18/src/bin/main.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../aoc_2019_18/src/lib.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../aoc_2019_18/src/lib.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../aoc_2020_3/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/../aoc_2020_3/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../aoc_2020_4/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/../aoc_2020_4/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/bin/main.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/bin/main.rs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -99,7 +96,7 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1607537046369</updated>
-      <workItem from="1607537048600" duration="1875000" />
+      <workItem from="1607537048600" duration="2185000" />
     </task>
     <servers />
   </component>

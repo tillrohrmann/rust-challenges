@@ -14,6 +14,7 @@
       <change beforePath="$PROJECT_DIR$/../aoc_2019_18/src/bin/main.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../aoc_2019_18/src/bin/main.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../aoc_2019_18/src/lib.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../aoc_2019_18/src/lib.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../aoc_2020_5/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/../aoc_2020_5/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -50,11 +51,6 @@
     <property name="org.rust.cargo.project.model.PROJECT_DISCOVERY" value="true" />
   </component>
   <component name="RunManager" selected="Cargo.Run main">
-    <configuration default="true" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" PASS_PARENT_ENVS_2="true">
-      <method v="2">
-        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
-      </method>
-    </configuration>
     <configuration name="Run main" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
       <option name="channel" value="DEFAULT" />
       <option name="command" value="run --package aoc_2020_6 --bin main" />
@@ -98,7 +94,8 @@
       <option name="presentableId" value="Default" />
       <updated>1607591818234</updated>
       <workItem from="1607591819468" duration="1227000" />
-      <workItem from="1607627841970" duration="1037000" />
+      <workItem from="1607627841970" duration="1236000" />
+      <workItem from="1607728363446" duration="53000" />
     </task>
     <servers />
   </component>
