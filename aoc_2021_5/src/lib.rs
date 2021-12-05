@@ -1,5 +1,6 @@
 use aoc_common::math::Point;
 use aoc_common::GenericResult;
+use std::error::Error;
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 
@@ -25,7 +26,7 @@ impl Line {
         } else if self.is_vertical() {
             Point(0, diff.1 / diff.1.abs())
         } else {
-            panic!("Diagonal lines are not supported yet :-(");
+            Point(diff.0 / diff.0.abs(), diff.1 / diff.1.abs())
         };
 
         let mut point = self.start;
@@ -120,10 +121,16 @@ impl Map {
     }
 }
 
-pub fn calculate_overlapping_points(input: &Vec<String>) -> GenericResult<u32> {
+pub fn calculate_overlapping_points_for_horizontal_vertical_lines(
+    input: &Vec<String>,
+) -> GenericResult<u32> {
     let lines = Lines::parse_from_input(input)?;
     let horizontal_vertical_lines = find_horizontal_vertical_lines(&lines);
 
+    calculate_overlapping_points(&horizontal_vertical_lines)
+}
+
+fn calculate_overlapping_points(horizontal_vertical_lines: &Lines) -> Result<u32, Box<dyn Error>> {
     let (max_width, max_height) = find_max_width_height(&horizontal_vertical_lines);
 
     let mut map = Map::new(max_width + 1, max_height + 1);
@@ -131,6 +138,12 @@ pub fn calculate_overlapping_points(input: &Vec<String>) -> GenericResult<u32> {
     horizontal_vertical_lines.draw(&mut map);
 
     Ok(map.map.iter().filter(|&&value| value > 1).count() as u32)
+}
+
+pub fn calculate_overlapping_points_for_all_lines(input: &Vec<String>) -> GenericResult<u32> {
+    let lines = Lines::parse_from_input(input)?;
+
+    calculate_overlapping_points(&lines)
 }
 
 fn find_max_width_height(lines: &Lines) -> (usize, usize) {
@@ -156,11 +169,30 @@ fn find_horizontal_vertical_lines(lines: &Lines) -> Lines {
 
 #[cfg(test)]
 mod tests {
-    use crate::calculate_overlapping_points;
+    use super::*;
 
     #[test]
     fn simple_overlap() {
-        let input = vec![
+        let input = create_input();
+
+        assert_eq!(
+            calculate_overlapping_points_for_horizontal_vertical_lines(&input).unwrap(),
+            5
+        );
+    }
+
+    #[test]
+    fn complex_overlap() {
+        let input = create_input();
+
+        assert_eq!(
+            calculate_overlapping_points_for_all_lines(&input).unwrap(),
+            12
+        );
+    }
+
+    fn create_input() -> Vec<String> {
+        vec![
             "0,9 -> 5,9".to_string(),
             "8,0 -> 0,8".to_string(),
             "9,4 -> 3,4".to_string(),
@@ -171,8 +203,6 @@ mod tests {
             "3,4 -> 1,4".to_string(),
             "0,0 -> 8,8".to_string(),
             "5,5 -> 8,2".to_string(),
-        ];
-
-        assert_eq!(calculate_overlapping_points(&input).unwrap(), 5);
+        ]
     }
 }
