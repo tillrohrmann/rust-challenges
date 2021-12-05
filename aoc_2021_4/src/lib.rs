@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 use std::num::ParseIntError;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 struct BingoBoard {
     board: Vec<u32>,
     sum: u32,
@@ -132,6 +132,38 @@ impl Game {
 
         0
     }
+
+    fn find_last_board(&self) -> u32 {
+        let mut numbers = HashSet::new();
+        let mut boards: HashSet<&BingoBoard> = self.boards.iter().collect();
+
+        for &number in &self.numberDrawing.numbers {
+            if boards.is_empty() {
+                break;
+            }
+
+            numbers.insert(number);
+
+            let winning_boards = boards
+                .iter()
+                .cloned()
+                .filter(|board| board.is_winning(&numbers))
+                .collect::<Vec<&BingoBoard>>();
+
+            boards.retain(|board| !board.is_winning(&numbers));
+
+            if boards.is_empty() {
+                println!("{:?}", winning_boards);
+                println!("Numbers: {:?}", numbers);
+                assert_eq!(winning_boards.len(), 1);
+
+                return number * winning_boards[0].calculate_winning_score(&numbers);
+            }
+        }
+
+        0
+    }
+
     fn find_winning_boards(&self, numbers: &HashSet<u32>) -> Vec<&BingoBoard> {
         self.boards
             .iter()
@@ -144,6 +176,12 @@ pub fn play_game(input: &Vec<&str>) -> Result<u32, ParseIntError> {
     let game = Game::parse_from_input(input)?;
 
     Ok(game.play())
+}
+
+pub fn play_losing_game(input: &Vec<&str>) -> Result<u32, ParseIntError> {
+    let game = Game::parse_from_input(input)?;
+
+    Ok(game.find_last_board())
 }
 
 #[cfg(test)]
