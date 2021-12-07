@@ -1,6 +1,6 @@
 #[derive(Debug)]
 struct Fishes {
-    fishes: [u32; 9],
+    fishes: [usize; 9],
     day: usize,
 }
 
@@ -32,23 +32,23 @@ impl Fishes {
         }
     }
 
-    fn number_fishes(&self) -> u32 {
+    fn number_fishes(&self) -> usize {
         self.fishes.iter().sum()
     }
 
-    fn getFishes(&self, day: usize) -> u32 {
+    fn getFishes(&self, day: usize) -> usize {
         let index = self.get_index(day);
 
         self.fishes[index]
     }
 
-    fn addFishes(&mut self, day: usize, increment: u32) {
+    fn addFishes(&mut self, day: usize, increment: usize) {
         let index = self.get_index(day);
 
         self.fishes[index] += increment;
     }
 
-    fn setFishes(&mut self, day: usize, new_value: u32) {
+    fn setFishes(&mut self, day: usize, new_value: usize) {
         let index = self.get_index(day);
         self.fishes[index] = new_value;
     }
@@ -65,7 +65,7 @@ impl Fishes {
     }
 }
 
-pub fn calculate_fishes_for(initial_fishes: &Vec<u32>, days: u32) -> u32 {
+pub fn calculate_fishes_for(initial_fishes: &Vec<u32>, days: u32) -> usize {
     let mut fishes = Fishes::new(initial_fishes);
     fishes.simulate_days(days);
     fishes.number_fishes()

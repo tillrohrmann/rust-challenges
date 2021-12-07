@@ -7,12 +7,19 @@ fn main() {
     let initial_fishes = parse_content(&content).unwrap();
 
     solve_part_one(&initial_fishes);
+    solve_part_two(&initial_fishes);
 }
 
 fn solve_part_one(initial_fishes: &Vec<u32>) {
     let result = aoc_2021_6::calculate_fishes_for(&initial_fishes, 80);
 
     println!("Part one: {}.", result);
+}
+
+fn solve_part_two(initial_fishes: &Vec<u32>) {
+    let result = aoc_2021_6::calculate_fishes_for(&initial_fishes, 256);
+
+    println!("Part two: {}.", result);
 }
 
 fn parse_content(input: &Vec<String>) -> GenericResult<Vec<u32>> {
