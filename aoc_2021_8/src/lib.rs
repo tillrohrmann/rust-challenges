@@ -94,7 +94,7 @@ impl<'a> Decoder<'a> {
         let one_pattern: HashSet<char> = one_encoding.unwrap().chars().collect();
         let four_pattern: HashSet<char> = four_encoding.unwrap().chars().collect();
 
-        let mut zero_six_or_nine = line.patterns.iter().filter(|pattern| pattern.len() == 6);
+        let zero_six_or_nine = line.patterns.iter().filter(|pattern| pattern.len() == 6);
 
         let mut six_encoding = None;
         let mut nine_encoding = None;
