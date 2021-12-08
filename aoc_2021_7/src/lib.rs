@@ -40,6 +40,7 @@ impl Crabs {
 
         min_fuel
     }
+
     fn number_crabs_and_fuel(&self) -> (u32, usize) {
         let mut total_crabs = 0;
         let mut fuel = 0;
@@ -51,12 +52,46 @@ impl Crabs {
 
         (total_crabs, fuel)
     }
+
+    pub fn calculate_minimal_fuel_with_increasing_rate(&self) -> usize {
+        let mut min_fuel = usize::MAX;
+        let mut min_position = usize::MAX;
+
+        for position in 0..self.number_per_position.len() {
+            let mut current_fuel = 0;
+
+            for left in 0..position {
+                let n = position - left;
+                current_fuel +=
+                    self.number_per_position[left] as usize * ((n + 1) * n / 2 as usize);
+            }
+
+            for right in (position + 1)..self.number_per_position.len() {
+                let n = right - position;
+                current_fuel +=
+                    self.number_per_position[right] as usize * ((n + 1) * n / 2 as usize);
+            }
+
+            if current_fuel < min_fuel {
+                min_fuel = current_fuel;
+                min_position = position;
+            }
+        }
+
+        min_fuel
+    }
 }
 
 pub fn calculate_minimal_fuel(initial_positions: &Vec<u32>) -> usize {
     let crabs = Crabs::new(initial_positions);
 
     crabs.calculate_minimal_fuel()
+}
+
+pub fn calculate_minimal_fuel_with_increasing_rate(initial_positions: &Vec<u32>) -> usize {
+    let crabs = Crabs::new(initial_positions);
+
+    crabs.calculate_minimal_fuel_with_increasing_rate()
 }
 
 #[cfg(test)]
@@ -67,5 +102,11 @@ mod tests {
     fn calculate_fuel() {
         let input = vec![16, 1, 2, 0, 4, 2, 7, 1, 2, 14];
         assert_eq!(calculate_minimal_fuel(&input), 37);
+    }
+
+    #[test]
+    fn calculate_fuel_with_increasing_rate() {
+        let input = vec![16, 1, 2, 0, 4, 2, 7, 1, 2, 14];
+        assert_eq!(calculate_minimal_fuel_with_increasing_rate(&input), 168);
     }
 }
