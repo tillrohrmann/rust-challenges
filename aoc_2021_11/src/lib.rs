@@ -172,6 +172,7 @@ impl Simulator {
         }
 
         self.num_flashes += flashed_points.len();
+        self.step += 1;
     }
 
     fn neighbours(Point(xp, yp): Point) -> Vec<Point> {
@@ -187,8 +188,22 @@ impl Simulator {
             .collect()
     }
 
+    pub fn find_first_step_all_flash(&mut self) -> usize {
+        loop {
+            if self.all_flashing() {
+                return self.step;
+            } else {
+                self.simulate_step();
+            }
+        }
+    }
+
     pub fn get_num_flashes(&self) -> usize {
         self.num_flashes
+    }
+
+    fn all_flashing(&self) -> bool {
+        self.map.fields.iter().all(|value| *value == 0)
     }
 }
 
