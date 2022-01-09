@@ -81,7 +81,7 @@ impl Map {
             } else {
                 if let Some(next_entries) = self.neighbours.get(&state.entry) {
                     for next_entry in next_entries {
-                        if let Some(next_state) = state.go(next_entry) {
+                        if let Some(next_state) = Map::go(&state, next_entry) {
                             states.push(next_state);
                         }
                     }
@@ -91,12 +91,60 @@ impl Map {
 
         distinct_paths
     }
+
+    fn go(state: &State, next_entry: &MapEntry) -> Option<State> {
+        if next_entry.is_small_cave() && state.visited_entries.contains(next_entry) || *next_entry == MapEntry::Start {
+            None
+        } else {
+            let mut new_visited_entries = state.visited_entries.clone();
+            new_visited_entries.insert(next_entry.clone());
+            Some(State::new(next_entry.clone(), new_visited_entries, false))
+        }
+    }
+
+    pub fn count_distinct_paths_with_rep(&self) -> usize {
+        let mut states = vec![State::start()];
+        let mut distinct_paths = 0;
+
+        while let Some(state) = states.pop() {
+            if state.entry == MapEntry::End {
+                distinct_paths += 1;
+            } else {
+                if let Some(next_entries) = self.neighbours.get(&state.entry) {
+                    for next_entry in next_entries {
+                        if let Some(next_state) = Map::go_with_rep(&state,next_entry) {
+                            states.push(next_state);
+                        }
+                    }
+                }
+            }
+        }
+
+        distinct_paths
+    }
+
+    fn go_with_rep(state: &State, next_entry: &MapEntry) -> Option<State> {
+        if *next_entry == MapEntry::Start {
+            None
+        } else if next_entry.is_small_cave() && state.visited_entries.contains(next_entry) {
+            if state.small_cave_twice {
+                None
+            } else {
+                Some(State::new(next_entry.clone(), state.visited_entries.clone(), true))
+            }
+        } else {
+            let mut new_visited_entries = state.visited_entries.clone();
+            new_visited_entries.insert(next_entry.clone());
+            Some(State::new(next_entry.clone(), new_visited_entries, state.small_cave_twice))
+        }
+    }
 }
 
 #[derive(Debug)]
 struct State {
     entry: MapEntry,
     visited_entries: HashSet<MapEntry>,
+    small_cave_twice: bool,
 }
 
 impl State {
@@ -106,23 +154,15 @@ impl State {
         State {
             entry: MapEntry::Start,
             visited_entries,
+            small_cave_twice: false,
         }
     }
 
-    fn new(entry: MapEntry, visited_entries: HashSet<MapEntry>) -> State {
+    fn new(entry: MapEntry, visited_entries: HashSet<MapEntry>, small_cave_twice: bool) -> State {
         State {
             entry,
             visited_entries,
-        }
-    }
-
-    fn go(&self, next_entry: &MapEntry) -> Option<State> {
-        if next_entry.is_small_cave() && self.visited_entries.contains(next_entry) || *next_entry == MapEntry::Start {
-            None
-        } else {
-            let mut new_visited_entries = self.visited_entries.clone();
-            new_visited_entries.insert(next_entry.clone());
-            Some(State::new(next_entry.clone(), new_visited_entries))
+            small_cave_twice,
         }
     }
 }
@@ -133,6 +173,17 @@ mod tests {
 
     #[test]
     fn simple_test() {
+        let map = simple_map();
+        assert_eq!(map.count_distinct_paths(), 10);
+    }
+
+    #[test]
+    fn part_two_test() {
+        let map = simple_map();
+        assert_eq!(map.count_distinct_paths_with_rep(), 36);
+    }
+
+    fn simple_map() -> Map {
         let input = "start-A
 start-b
 A-c
@@ -142,6 +193,6 @@ A-end
 b-end".split("\n").map(|line| line.to_string()).collect();
 
         let map = Map::parse(&input).unwrap();
-        assert_eq!(map.count_distinct_paths(), 10);
+        map
     }
 }
