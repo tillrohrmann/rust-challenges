@@ -6,6 +6,7 @@ use regex::Regex;
 use aoc_common::math::Point;
 use aoc_common::GenericResult;
 use std::collections::HashSet;
+use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 
 pub struct Paper {
@@ -17,7 +18,7 @@ impl Paper {
         Paper { points }
     }
 
-    pub fn fold(&self, instruction: FoldingInstruction) -> Paper {
+    pub fn fold(&self, instruction: &FoldingInstruction) -> Paper {
         let new_points = self
             .points
             .iter()
@@ -38,6 +39,30 @@ impl Paper {
             .collect::<GenericResult<_>>()?;
 
         Ok(Paper::new(points))
+    }
+}
+
+impl Display for Paper {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let (max_x, max_y) = self
+            .points
+            .iter()
+            .fold((0, 0), |(max_x, max_y), &Point(x, y)| {
+                (x.max(max_x), y.max(max_y))
+            });
+
+        for y in 0..=max_y {
+            for x in 0..=max_x {
+                if self.points.contains(&Point(x, y)) {
+                    write!(f, "#")?;
+                } else {
+                    write!(f, " ")?;
+                }
+            }
+            writeln!(f, "")?;
+        }
+
+        Ok(())
     }
 }
 
